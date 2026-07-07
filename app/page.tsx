@@ -85,10 +85,20 @@ export default function Home() {
             </span>
           </Link>
           <nav>
-            <ul className="flex gap-8 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
+            <ul className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
               <li>
                 <Link href="#collections" className="hover:text-gold-400 transition-colors">
                   Collections
+                </Link>
+              </li>
+              <li>
+                <Link href="/login" className="rounded-full border border-gold-400/40 px-4 py-2 text-gold-400 transition hover:bg-gold-400/10">
+                  Sign In
+                </Link>
+              </li>
+              <li>
+                <Link href="/signup" className="rounded-full bg-gold-400 px-4 py-2 text-zinc-950 transition hover:bg-gold-400/90">
+                  Sign Up
                 </Link>
               </li>
             </ul>
