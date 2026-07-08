@@ -11,6 +11,7 @@ export default function LoginPage() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitted(true);
+    window.location.href = "/admin";
   };
 
   return (
