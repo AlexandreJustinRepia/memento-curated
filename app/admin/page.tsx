@@ -3,13 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 
-const navigation = [
-  { label: "Overview", href: "/admin", key: "overview" },
-  { label: "Visitors", href: "/admin", key: "visitors" },
-  { label: "Orders", href: "/admin", key: "orders" },
-  { label: "Catalog", href: "/admin", key: "catalog" },
-];
-
 const stats = [
   { label: "Visits", value: "12,840", change: "+12.4%", tone: "text-emerald-400" },
   { label: "Orders", value: "86", change: "+8.1%", tone: "text-gold-400" },
@@ -31,80 +24,131 @@ const quickActions = [
 
 export default function AdminPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("overview");
+  const [isManageOpen, setIsManageOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const manageOpen = isManageOpen || activeSection === "users" || activeSection === "products";
 
   return (
-    <main className="min-h-[100dvh] bg-zinc-950 px-4 py-4 text-zinc-100 sm:px-6 lg:px-8 lg:py-6">
+    <main className="min-h-[100dvh] overflow-x-hidden bg-zinc-950 px-4 py-4 text-zinc-100 sm:px-6 lg:px-8 lg:py-6">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 lg:flex-row lg:items-start">
-        <aside className="w-full rounded-[2rem] border border-white/10 bg-zinc-900/80 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl lg:sticky lg:top-4 lg:w-72 lg:self-start">
+        {isMenuOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="fixed inset-0 z-30 bg-zinc-950/70 backdrop-blur-sm lg:hidden"
+            onClick={() => setIsMenuOpen(false)}
+          />
+        )}
+
+        <button
+          type="button"
+          aria-label="Toggle navigation"
+          className="fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-gold-400/30 bg-zinc-900/95 text-gold-400 shadow-lg backdrop-blur-xl transition hover:border-gold-400/60 hover:text-gold-400 lg:hidden"
+          onClick={() => setIsMenuOpen((open) => !open)}
+        >
+          <span className="flex flex-col gap-1.5">
+            <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "translate-y-2 rotate-45" : ""}`} />
+            <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "opacity-0" : ""}`} />
+            <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "-translate-y-2 -rotate-45" : ""}`} />
+          </span>
+        </button>
+
+        <aside className={`fixed inset-y-0 left-0 z-40 w-[86vw] max-w-72 rounded-r-[2rem] border-r border-white/10 bg-zinc-900/95 p-4 pt-20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-transform duration-300 lg:sticky lg:top-4 lg:w-72 lg:self-start lg:translate-x-0 lg:rounded-[2rem] lg:border lg:bg-zinc-900/80 lg:pt-4 ${isMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Admin</p>
               <h2 className="mt-1 text-lg font-semibold text-white">Memento Curated</h2>
             </div>
-            <button
-              type="button"
-              aria-label="Toggle navigation"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400 lg:hidden"
-              onClick={() => setIsMenuOpen((open) => !open)}
-            >
-              <span className="flex flex-col gap-1.5">
-                <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "translate-y-2 rotate-45" : ""}`} />
-                <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "opacity-0" : ""}`} />
-                <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "-translate-y-2 -rotate-45" : ""}`} />
-              </span>
-            </button>
           </div>
 
           <nav className="mt-6 hidden lg:block">
             <ul className="space-y-2">
-              {navigation.map((item) => {
-                const isActive = activeSection === item.key;
+              <li>
+                <Link
+                  href="/admin"
+                  onClick={() => {
+                    setActiveSection("dashboard");
+                    setIsManageOpen(false);
+                  }}
+                  className={`flex items-center rounded-2xl border px-3 py-3 text-sm font-medium transition ${
+                    activeSection === "dashboard"
+                      ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
+                      : "border-transparent text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
+                  }`}
+                >
+                  Dashboard
+                </Link>
+              </li>
 
-                return (
-                  <li key={item.label}>
-                    <Link
-                      href={item.href}
-                      onClick={() => setActiveSection(item.key)}
-                      className={`flex items-center rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                        isActive
-                          ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                          : "border-transparent text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setIsManageOpen((open) => !open)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-3 text-sm font-medium text-zinc-300 transition hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
+                >
+                  <span>Manage</span>
+                  <span className="text-xs">▾</span>
+                </button>
+              </li>
+
+              {manageOpen && (
+                <li className="space-y-2 px-2">
+                  <Link
+                    href="/admin/users"
+                    onClick={() => {
+                      setActiveSection("users");
+                    }}
+                    className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
+                      activeSection === "users"
+                        ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
+                        : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
+                    }`}
+                  >
+                    Users
+                  </Link>
+                  <Link
+                    href="/admin/products"
+                    onClick={() => {
+                      setActiveSection("products");
+                    }}
+                    className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
+                      activeSection === "products"
+                        ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
+                        : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
+                    }`}
+                  >
+                    Products
+                  </Link>
+                </li>
+              )}
             </ul>
           </nav>
 
           {isMenuOpen && (
             <nav className="mt-4 lg:hidden">
               <ul className="space-y-2">
-                {navigation.map((item) => {
-                  const isActive = activeSection === item.key;
+                <li>
+                  <Link href="/admin" className={`flex items-center rounded-2xl border px-3 py-3 text-sm font-medium transition ${activeSection === "dashboard" ? "border-gold-400/30 bg-gold-400/10 text-gold-400" : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"}`} onClick={() => { setActiveSection("dashboard"); setIsMenuOpen(false); }}>
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <button type="button" onClick={() => setIsManageOpen((open) => !open)} className="flex w-full items-center justify-between rounded-2xl border border-white/10 px-3 py-3 text-sm font-medium text-zinc-300 transition hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400">
+                    Manage
+                    <span className="text-xs">▾</span>
+                  </button>
+                </li>
 
-                  return (
-                    <li key={item.label}>
-                      <Link
-                        href={item.href}
-                        onClick={() => {
-                          setActiveSection(item.key);
-                          setIsMenuOpen(false);
-                        }}
-                        className={`flex items-center rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                          isActive
-                            ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                            : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    </li>
-                  );
-                })}
+                {manageOpen && (
+                  <li className="space-y-2 px-2">
+                    <Link href="/admin/users" className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${activeSection === "users" ? "border-gold-400/30 bg-gold-400/10 text-gold-400" : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"}`} onClick={() => { setActiveSection("users"); setIsMenuOpen(false); }}>
+                      Users
+                    </Link>
+                    <Link href="/admin/products" className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${activeSection === "products" ? "border-gold-400/30 bg-gold-400/10 text-gold-400" : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"}`} onClick={() => { setActiveSection("products"); setIsMenuOpen(false); }}>
+                      Products
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
           )}
@@ -117,7 +161,7 @@ export default function AdminPage() {
           </div>
         </aside>
 
-        <section className="flex-1 space-y-6">
+        <section className="flex-1 space-y-6 pt-20 lg:pt-0">
           <header className="rounded-[2rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
