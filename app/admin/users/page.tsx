@@ -25,11 +25,7 @@ const initialUsers: User[] = [
 
 export default function UsersPage() {
   const [users, setUsers] = useState(initialUsers);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isManageOpen, setIsManageOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("users");
   const [modalState, setModalState] = useState<ModalState>({ type: null });
-  const manageOpen = isManageOpen || activeSection === "users" || activeSection === "products";
   const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState({
     name: "",
@@ -104,244 +100,90 @@ export default function UsersPage() {
   };
 
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-zinc-950 px-4 py-4 text-zinc-100 sm:px-6 lg:px-8 lg:py-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 lg:flex-row lg:items-start">
-        {isMenuOpen && (
-          <button
-            type="button"
-            aria-label="Close navigation"
-            className="fixed inset-0 z-30 bg-zinc-950/70 backdrop-blur-sm lg:hidden"
-            onClick={() => setIsMenuOpen(false)}
-          />
-        )}
-
-        <button
-          type="button"
-          aria-label="Toggle navigation"
-          className="fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-gold-400/30 bg-zinc-900/95 text-gold-400 shadow-lg backdrop-blur-xl transition hover:border-gold-400/60 hover:text-gold-400 lg:hidden"
-          onClick={() => setIsMenuOpen((open) => !open)}
-        >
-          <span className="flex flex-col gap-1.5">
-            <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "translate-y-2 rotate-45" : ""}`} />
-            <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "opacity-0" : ""}`} />
-            <span className={`h-0.5 w-5 rounded-full bg-current transition ${isMenuOpen ? "-translate-y-2 -rotate-45" : ""}`} />
-          </span>
-        </button>
-
-        <aside className={`fixed inset-y-0 left-0 z-40 w-[86vw] max-w-72 rounded-r-[2rem] border-r border-white/10 bg-zinc-900/95 p-4 pt-20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-transform duration-300 lg:sticky lg:top-4 lg:w-72 lg:self-start lg:translate-x-0 lg:rounded-[2rem] lg:border lg:bg-zinc-900/80 lg:pt-4 ${isMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Admin</p>
-              <h2 className="mt-1 text-lg font-semibold text-white">Memento Curated</h2>
-            </div>
-          </div>
-
-          <nav className="mt-6 hidden lg:block">
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/admin"
-                  onClick={() => {
-                    setActiveSection("dashboard");
-                    setIsManageOpen(false);
-                  }}
-                  className={`flex items-center rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                    activeSection === "dashboard"
-                      ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                      : "border-transparent text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                  }`}
-                >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setIsManageOpen((open) => !open)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-3 text-sm font-medium text-zinc-300 transition hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                >
-                  <span>Manage</span>
-                  <span className="text-xs">▾</span>
-                </button>
-              </li>
-              {manageOpen && (
-                <li className="space-y-2 px-2">
-                  <Link
-                    href="/admin/users"
-                    onClick={() => {
-                      setActiveSection("users");
-                      setIsMenuOpen(false);
-                    }}
-                    className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                      activeSection === "users"
-                        ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                        : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                    }`}
-                  >
-                    Users
-                  </Link>
-                  <Link
-                    href="/admin/products"
-                    onClick={() => {
-                      setActiveSection("products");
-                      setIsMenuOpen(false);
-                    }}
-                    className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                      activeSection === "products"
-                        ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                        : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                    }`}
-                  >
-                    Products
-                  </Link>
-                </li>
-              )}
-            </ul>
-          </nav>
-
-          {isMenuOpen && (
-            <nav className="mt-4 lg:hidden">
-              <ul className="space-y-2">
-                <li>
-                  <Link
-                    href="/admin"
-                    className={`flex items-center rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                      activeSection === "dashboard"
-                        ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                        : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                    }`}
-                    onClick={() => {
-                      setActiveSection("dashboard");
-                      setIsMenuOpen(false);
-                      setIsManageOpen(false);
-                    }}
-                  >
-                    Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setIsManageOpen((open) => !open)}
-                    className="flex w-full items-center justify-between rounded-2xl border border-white/10 px-3 py-3 text-sm font-medium text-zinc-300 transition hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                  >
-                    Manage
-                    <span className="text-xs">▾</span>
-                  </button>
-                </li>
-                {manageOpen && (
-                  <li className="space-y-2 px-2">
-                    <Link
-                      href="/admin/users"
-                      className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                        activeSection === "users"
-                          ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                          : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                      }`}
-                      onClick={() => {
-                        setActiveSection("users");
-                        setIsMenuOpen(false);
-                      }}
-                    >
-                      Users
-                    </Link>
-                    <Link
-                      href="/admin/products"
-                      className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                        activeSection === "products"
-                          ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                          : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                      }`}
-                      onClick={() => {
-                        setActiveSection("products");
-                        setIsMenuOpen(false);
-                      }}
-                    >
-                      Products
-                    </Link>
-                  </li>
-                )}
-              </ul>
-            </nav>
-          )}
-
-          <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-zinc-950/70 p-4">
-            <p className="text-sm font-semibold text-white">User management</p>
+    <>
+      <header className="rounded-[2rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Users</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Manage customer accounts
+            </h1>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Create, edit, and manage customer and admin accounts in one place.
+              Add, edit, and remove users from your curated storefront.
             </p>
           </div>
-        </aside>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin"
+              className="inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-gold-400/40 hover:text-gold-400"
+            >
+              Back to dashboard
+            </Link>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="rounded-full bg-gold-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90"
+            >
+              Add user
+            </button>
+          </div>
+        </div>
+      </header>
 
-        <section className="flex-1 space-y-6 pt-20 lg:pt-0">
-          <header className="rounded-[2rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <section className="rounded-[1.75rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-white">Registered users</p>
+            <p className="mt-1 text-sm text-zinc-400">Tap on an account to update or remove it.</p>
+          </div>
+          <span className="rounded-full border border-gold-400/20 bg-gold-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-400">
+            {users.length} total
+          </span>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {currentUsers.map((user) => (
+            <div key={user.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/70 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Users</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                  Manage accounts
-                </h1>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Create new users instantly and update access details from a clean dashboard.
-                </p>
+                <p className="text-sm font-semibold text-white">{user.name}</p>
+                <p className="mt-1 text-sm text-zinc-400">{user.email}</p>
               </div>
-              <button
-                type="button"
-                onClick={openCreate}
-                className="rounded-full bg-gold-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90"
-              >
-                Create user
-              </button>
-            </div>
-          </header>
-
-          <section className="rounded-[1.75rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">Registered users</p>
-                <p className="mt-1 text-sm text-zinc-400">Tap on an account to update or remove it.</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-zinc-300">
+                  {user.role}
+                </span>
+                <span className="rounded-full border border-gold-400/20 bg-gold-400/10 px-3 py-1 text-xs font-medium text-gold-400">
+                  {user.status}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openEdit(user)}
+                  className="rounded-full border border-white/10 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDelete(user)}
+                  className="rounded-full border border-rose-400/20 px-3 py-1.5 text-sm text-rose-300 transition hover:bg-rose-400/10"
+                >
+                  Delete
+                </button>
               </div>
-              <span className="rounded-full border border-gold-400/20 bg-gold-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-400">
-                {users.length} total
-              </span>
             </div>
+          ))}
+        </div>
 
-            <div className="mt-6 space-y-3">
-              {currentUsers.map((user) => (
-                <div key={user.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/70 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{user.name}</p>
-                    <p className="mt-1 text-sm text-zinc-400">{user.email}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-zinc-300">
-                      {user.role}
-                    </span>
-                    <span className="rounded-full border border-gold-400/20 bg-gold-400/10 px-3 py-1 text-xs font-medium text-gold-400">
-                      {user.status}
-                    </span>
-                    <button type="button" onClick={() => openEdit(user)} className="rounded-full border border-white/10 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400">
-                      Edit
-                    </button>
-                    <button type="button" onClick={() => openDelete(user)} className="rounded-full border border-rose-400/20 px-3 py-1.5 text-sm text-rose-300 transition hover:bg-rose-400/10">
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-          </section>
-        </section>
-      </div>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+      </section>
 
       {modalState.type && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[1.75rem] border border-white/10 bg-zinc-900 p-6 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
-                  {modalState.type === "delete" ? "Remove user" : modalState.type === "edit" ? "Edit user" : "Create user"}
+                  {modalState.type === "delete" ? "Remove user" : modalState.type === "edit" ? "Edit user" : "Add user"}
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-white">
                   {modalState.type === "delete" ? "Delete this account?" : modalState.type === "edit" ? "Update account details" : "Add a new account"}
@@ -369,24 +211,57 @@ export default function UsersPage() {
             ) : (
               <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-zinc-300" htmlFor="name">Full name</label>
-                  <input id="name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400" placeholder="Ava Laurent" required />
+                  <label className="text-sm font-medium text-zinc-300" htmlFor="name">
+                    Full name
+                  </label>
+                  <input
+                    id="name"
+                    value={form.name}
+                    onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                    placeholder="Ava Laurent"
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-zinc-300" htmlFor="email">Email</label>
-                  <input id="email" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400" placeholder="user@example.com" required />
+                  <label className="text-sm font-medium text-zinc-300" htmlFor="email">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                    placeholder="user@example.com"
+                    required
+                  />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-zinc-300" htmlFor="role">Role</label>
-                    <select id="role" value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400">
+                    <label className="text-sm font-medium text-zinc-300" htmlFor="role">
+                      Role
+                    </label>
+                    <select
+                      id="role"
+                      value={form.role}
+                      onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                    >
                       <option>Customer</option>
                       <option>Admin</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-zinc-300" htmlFor="status">Status</label>
-                    <select id="status" value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400">
+                    <label className="text-sm font-medium text-zinc-300" htmlFor="status">
+                      Status
+                    </label>
+                    <select
+                      id="status"
+                      value={form.status}
+                      onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                    >
                       <option>Active</option>
                       <option>Pending</option>
                       <option>Inactive</option>
@@ -394,10 +269,17 @@ export default function UsersPage() {
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={closeModal} className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400"
+                  >
                     Cancel
                   </button>
-                  <button type="submit" className="rounded-full bg-gold-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90">
+                  <button
+                    type="submit"
+                    className="rounded-full bg-gold-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90"
+                  >
                     {modalState.type === "edit" ? "Save changes" : "Create user"}
                   </button>
                 </div>
@@ -406,6 +288,6 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </main>
+    </>
   );
 }
