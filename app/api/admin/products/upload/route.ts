@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 
 // Service-role key — can write to storage regardless of RLS
 const supabase = createClient(
@@ -8,8 +9,13 @@ const supabase = createClient(
 );
 
 const BUCKET = "product-images";
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB (pre-optimization)
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+// Sharp optimization settings
+const MAX_WIDTH = 1200;
+const MAX_HEIGHT = 1200;
+const WEBP_QUALITY = 82;
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData().catch(() => null);
@@ -30,16 +36,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File exceeds 5 MB limit" }, { status: 413 });
   }
 
-  // Unique file name to prevent collisions
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  // Read the raw buffer
+  const buffer = Buffer.from(await file.arrayBuffer());
 
-  const buffer = await file.arrayBuffer();
+  // Optimize with Sharp: resize (if needed) and convert to WebP
+  let optimizedBuffer: Buffer;
+  try {
+    optimizedBuffer = await sharp(buffer)
+      .rotate() // auto-rotate based on EXIF orientation
+      .resize({
+        width: MAX_WIDTH,
+        height: MAX_HEIGHT,
+        fit: "inside", // preserve aspect ratio, no cropping
+        withoutEnlargement: true, // don't upscale small images
+      })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer();
+  } catch (err) {
+    console.error("[upload] Sharp processing error:", err);
+    return NextResponse.json({ error: "Failed to process image" }, { status: 500 });
+  }
+
+  // Generate a unique file name (always .webp since we converted)
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(fileName, buffer, {
-      contentType: file.type,
+    .upload(fileName, optimizedBuffer, {
+      contentType: "image/webp",
       upsert: false,
     });
 

@@ -19,6 +19,11 @@ type Props = {
   onChange: (url: string) => void;
 };
 
+type UploadResponse = {
+  url?: string;
+  error?: string;
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -26,6 +31,46 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function uploadProductImage(
+  file: File,
+  onProgress: (progress: number) => void
+) {
+  return new Promise<UploadResponse>((resolve, reject) => {
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.upload.onload = () => onProgress(100);
+
+    xhr.onload = () => {
+      let json: UploadResponse = {};
+      try {
+        json = JSON.parse(xhr.responseText || "{}");
+      } catch {
+        reject(new Error("Upload failed"));
+        return;
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(json.error ?? "Upload failed"));
+        return;
+      }
+
+      resolve(json);
+    };
+
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.onabort = () => reject(new Error("Upload cancelled"));
+    xhr.open("POST", "/api/admin/products/upload");
+    xhr.send(fd);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -43,6 +88,7 @@ export default function ImagePicker({ value, onChange }: Props) {
 
   // Upload state
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -71,16 +117,11 @@ export default function ImagePicker({ value, onChange }: Props) {
   // ── Upload ───────────────────────────────────────────────────────────────
   const handleUpload = async (file: File) => {
     setUploading(true);
+    setUploadProgress(0);
     setUploadError(null);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/admin/products/upload", {
-        method: "POST",
-        body: fd,
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      const json = await uploadProductImage(file, setUploadProgress);
+      if (!json.url) throw new Error(json.error ?? "Upload failed");
       onChange(json.url);
       setOpen(false);
       // Refresh library next time it opens
@@ -89,6 +130,7 @@ export default function ImagePicker({ value, onChange }: Props) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
       if (fileRef.current) fileRef.current.value = "";
     }
   };
@@ -298,12 +340,12 @@ export default function ImagePicker({ value, onChange }: Props) {
                       {uploading ? "Uploading…" : "Click to choose a file"}
                     </span>
                     <span className="text-xs text-zinc-500">
-                      JPEG · PNG · WebP · GIF · max 5 MB
+                      Any image format · max 5 MB · auto-converted to WebP
                     </span>
                     <input
                       ref={fileRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      accept="image/*"
                       className="sr-only"
                       disabled={uploading}
                       onChange={(e) => {
@@ -320,11 +362,30 @@ export default function ImagePicker({ value, onChange }: Props) {
                   )}
 
                   {uploading && (
-                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold-400 border-t-transparent" />
-                      <span className="text-sm text-zinc-300">
-                        Uploading to Supabase Storage…
-                      </span>
+                    <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-zinc-300">
+                          {uploadProgress >= 100
+                            ? "Processing image…"
+                            : "Uploading to server…"}
+                        </span>
+                        <span className="text-sm font-semibold text-gold-400">
+                          {uploadProgress}%
+                        </span>
+                      </div>
+                      <div
+                        className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-800"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={uploadProgress}
+                        aria-label="Product image upload progress"
+                      >
+                        <div
+                          className="h-full rounded-full bg-gold-400 transition-[width] duration-200"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
