@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -91,6 +91,8 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [session, setSession] = useState<SessionUser | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLLIElement>(null);
 
   // Check auth status on mount
   useEffect(() => {
@@ -101,11 +103,24 @@ export default function Home() {
       .finally(() => setSessionLoading(false));
   }, []);
 
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   const handleLogout = async () => {
     await fetch("/api/auth/signout", { method: "POST" });
     setSession(null);
     window.location.href = "/";
   };
+
+  const userDisplayName = session?.name || session?.email || "User";
 
   useEffect(() => {
     fetch("/api/products")
@@ -149,32 +164,55 @@ export default function Home() {
                 </Link>
               </li>
 
-              {/* Auth buttons — swap based on session */}
+              {/* Auth — dropdown when logged in, buttons when logged out */}
               {!sessionLoading && (
                 session ? (
-                  <>
-                    {session.role === "admin" && (
-                      <li>
-                        <Link
-                          href="/admin"
-                          className="hover:text-gold-400 transition-colors"
-                        >
-                          Dashboard
-                        </Link>
-                      </li>
+                  <li className="relative" ref={userMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setUserMenuOpen((open) => !open)}
+                      className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-900/70 px-3 py-1.5 text-sm transition hover:border-gold-400/20 hover:bg-gold-400/10"
+                    >
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400/20 text-xs font-bold uppercase text-gold-400">
+                        {userDisplayName.charAt(0)}
+                      </span>
+                      <span className="hidden sm:inline text-zinc-200">{userDisplayName}</span>
+                      <span className={`text-xs text-zinc-400 transition ${userMenuOpen ? "rotate-180" : ""}`}>▾</span>
+                    </button>
+
+                    {userMenuOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-56 rounded-[1.5rem] border border-white/10 bg-zinc-900 p-2 shadow-xl backdrop-blur-xl">
+                        <div className="border-b border-white/10 pb-2 mb-2 px-3 py-2">
+                          <p className="truncate text-sm font-medium text-white">{userDisplayName}</p>
+                          <p className="truncate text-xs text-zinc-500">{session?.email ?? ""}</p>
+                        </div>
+                        <div className="space-y-1">
+                          {session.role === "admin" && (
+                            <Link
+                              href="/admin"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-gold-400/10 hover:text-gold-400"
+                            >
+                              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                              </svg>
+                              Dashboard
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-red-400/10 hover:text-red-400"
+                          >
+                            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                            </svg>
+                            Sign out
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    <li className="text-zinc-500 hidden sm:block">
-                      {session.name || session.email}
-                    </li>
-                    <li>
-                      <button
-                        onClick={handleLogout}
-                        className="rounded-full border border-white/20 px-4 py-2 text-zinc-300 transition hover:border-red-400/40 hover:text-red-400"
-                      >
-                        Logout
-                      </button>
-                    </li>
-                  </>
+                  </li>
                 ) : (
                   <>
                     <li>
