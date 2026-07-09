@@ -22,8 +22,8 @@ type FormState = {
   name: string;
   description: string;
   category: string;
-  price: number;
-  stock: number;
+  price: string;
+  stock: string;
   image_url: string;
 };
 
@@ -31,8 +31,8 @@ const EMPTY_FORM: FormState = {
   name: "",
   description: "",
   category: "Rings",
-  price: 0,
-  stock: 0,
+  price: "",
+  stock: "",
   image_url: "",
 };
 
@@ -41,6 +41,21 @@ const CATEGORIES = ["Rings", "Necklaces", "Bracelets", "Earrings", "Uncategorize
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+  }).format(value);
+}
+
+function toProductPayload(form: FormState) {
+  return {
+    ...form,
+    price: Number(form.price) || 0,
+    stock: Number(form.stock) || 0,
+  };
+}
+
 function Shimmer() {
   return (
     <div className="space-y-4">
@@ -116,7 +131,7 @@ export default function ProductsPage() {
       const res = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(toProductPayload(form)),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       await fetchProducts();
@@ -139,7 +154,7 @@ export default function ProductsPage() {
       const res = await fetch(`/api/admin/products/${selectedProduct.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(toProductPayload(form)),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       await fetchProducts();
@@ -179,8 +194,8 @@ export default function ProductsPage() {
       name:        p.name,
       description: p.description ?? "",
       category:    p.category,
-      price:       p.price,
-      stock:       p.stock,
+      price:       String(p.price),
+      stock:       String(p.stock),
       image_url:   p.image_url ?? "",
     });
     setIsEditing(false);
@@ -239,14 +254,14 @@ export default function ProductsPage() {
       {/* Price + Stock */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-zinc-300">Price ($)</label>
+          <label className="block text-sm font-medium text-zinc-300">Price (PHP)</label>
           <input
             type="number"
             min={0}
             step="0.01"
             required
             value={form.price}
-            onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))}
+            onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
           />
         </div>
@@ -257,7 +272,7 @@ export default function ProductsPage() {
             min={0}
             required
             value={form.stock}
-            onChange={(e) => setForm((f) => ({ ...f, stock: Number(e.target.value) }))}
+            onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
           />
         </div>
@@ -375,7 +390,7 @@ export default function ProductsPage() {
                       </div>
                     </div>
                     <p className="text-sm font-semibold text-gold-400">
-                      ${Number(product.price).toFixed(2)}
+                      {formatCurrency(Number(product.price))}
                     </p>
                   </div>
                 </button>
@@ -491,7 +506,7 @@ export default function ProductsPage() {
                 )}
                 <div className="grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-sm">
                   <Row label="Category" value={selectedProduct.category} />
-                  <Row label="Price"    value={`$${Number(selectedProduct.price).toFixed(2)}`} />
+                  <Row label="Price"    value={formatCurrency(Number(selectedProduct.price))} />
                   <Row label="Stock"    value={`${selectedProduct.stock} units`} />
                   {selectedProduct.description && (
                     <div>

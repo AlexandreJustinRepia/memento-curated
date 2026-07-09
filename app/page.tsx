@@ -46,6 +46,13 @@ const staggerContainer = {
 // ---------------------------------------------------------------------------
 // Skeleton card
 // ---------------------------------------------------------------------------
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+  }).format(value);
+}
+
 function ProductSkeleton() {
   return (
     <div className="rounded-3xl bg-zinc-900/40 border border-white/10 overflow-hidden animate-pulse">
@@ -528,7 +535,7 @@ export default function Home() {
                             {product.name}
                           </h3>
                           <span className="font-mono text-sm font-semibold text-gold-400 shrink-0">
-                            ${Number(product.price).toFixed(2)}
+                            {formatCurrency(Number(product.price))}
                           </span>
                         </div>
                         {product.description && (
