@@ -92,6 +92,7 @@ export default function Home() {
   const [session, setSession] = useState<SessionUser | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLLIElement>(null);
 
   // Check auth status on mount
@@ -153,8 +154,10 @@ export default function Home() {
               Memento
             </span>
           </Link>
-          <nav>
-            <ul className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
+
+          {/* Desktop nav */}
+          <nav className="hidden md:block">
+            <ul className="flex items-center gap-3 sm:gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
               <li>
                 <Link
                   href="#collections"
@@ -164,7 +167,6 @@ export default function Home() {
                 </Link>
               </li>
 
-              {/* Auth — dropdown when logged in, buttons when logged out */}
               {!sessionLoading && (
                 session ? (
                   <li className="relative" ref={userMenuRef}>
@@ -236,12 +238,106 @@ export default function Home() {
               )}
             </ul>
           </nav>
+
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            aria-label="Toggle menu"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-gold-400/30 bg-zinc-900/95 text-gold-400 transition hover:border-gold-400/60 hover:text-gold-400 md:hidden"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            <span className="flex flex-col gap-1">
+              <span className={`h-0.5 w-4 rounded-full bg-current transition ${mobileMenuOpen ? "translate-y-1.5 rotate-45" : ""}`} />
+              <span className={`h-0.5 w-4 rounded-full bg-current transition ${mobileMenuOpen ? "opacity-0" : ""}`} />
+              <span className={`h-0.5 w-4 rounded-full bg-current transition ${mobileMenuOpen ? "-translate-y-1.5 -rotate-45" : ""}`} />
+            </span>
+          </button>
         </div>
+
+        {/* Mobile drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-white/10 bg-zinc-900/95 backdrop-blur-xl">
+            <nav className="container mx-auto px-6 py-4">
+              <ul className="space-y-3 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
+                <li>
+                  <Link
+                    href="#collections"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
+                  >
+                    Collections
+                  </Link>
+                </li>
+
+                {!sessionLoading && (
+                  session ? (
+                    <>
+                      {session.role === "admin" && (
+                        <li>
+                          <Link
+                            href="/admin"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
+                          >
+                            Dashboard
+                          </Link>
+                        </li>
+                      )}
+                      <li className="border-t border-white/10 pt-3">
+                        <div className="flex items-center gap-3 px-3 py-2">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-400/20 text-xs font-bold uppercase text-gold-400">
+                            {userDisplayName.charAt(0)}
+                          </span>
+                          <div>
+                            <p className="text-sm font-medium text-white">{userDisplayName}</p>
+                            <p className="text-xs text-zinc-500">{session?.email ?? ""}</p>
+                          </div>
+                        </div>
+                      </li>
+                      <li>
+                        <button
+                          onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-red-400 transition hover:bg-red-400/10"
+                        >
+                          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                          </svg>
+                          Sign out
+                        </button>
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li>
+                        <Link
+                          href="/login"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
+                        >
+                          Sign In
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href="/signup"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
+                        >
+                          Sign Up
+                        </Link>
+                      </li>
+                    </>
+                  )
+                )}
+              </ul>
+            </nav>
+          </div>
+        )}
       </header>
 
       <main className="bg-zinc-950 min-h-[100dvh]">
         {/* ── Hero ──────────────────────────────────────────────────────── */}
-        <section className="relative min-h-[100dvh] flex items-center pt-20 overflow-hidden">
+        <section className="relative min-h-[100dvh] flex items-center pt-28 sm:pt-20 overflow-hidden">
           <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-radial from-gold-400/5 to-transparent rounded-full blur-[140px] -z-10" />
           <div className="absolute bottom-0 left-0 w-[30vw] h-[30vw] bg-radial from-zinc-800/10 to-transparent rounded-full blur-[100px] -z-10" />
 
