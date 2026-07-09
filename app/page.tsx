@@ -18,6 +18,13 @@ type Product = {
   stock: number;
 };
 
+type SessionUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+};
+
 // ---------------------------------------------------------------------------
 // Animation variants
 // ---------------------------------------------------------------------------
@@ -82,6 +89,23 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [session, setSession] = useState<SessionUser | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+
+  // Check auth status on mount
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => setSession(data))
+      .catch(() => setSession(null))
+      .finally(() => setSessionLoading(false));
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/signout", { method: "POST" });
+    setSession(null);
+    window.location.href = "/";
+  };
 
   useEffect(() => {
     fetch("/api/products")
@@ -124,22 +148,54 @@ export default function Home() {
                   Collections
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/login"
-                  className="rounded-full border border-gold-400/40 px-4 py-2 text-gold-400 transition hover:bg-gold-400/10"
-                >
-                  Sign In
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/signup"
-                  className="rounded-full bg-gold-400 px-4 py-2 text-zinc-950 transition hover:bg-gold-400/90"
-                >
-                  Sign Up
-                </Link>
-              </li>
+
+              {/* Auth buttons — swap based on session */}
+              {!sessionLoading && (
+                session ? (
+                  <>
+                    {session.role === "admin" && (
+                      <li>
+                        <Link
+                          href="/admin"
+                          className="hover:text-gold-400 transition-colors"
+                        >
+                          Dashboard
+                        </Link>
+                      </li>
+                    )}
+                    <li className="text-zinc-500 hidden sm:block">
+                      {session.name || session.email}
+                    </li>
+                    <li>
+                      <button
+                        onClick={handleLogout}
+                        className="rounded-full border border-white/20 px-4 py-2 text-zinc-300 transition hover:border-red-400/40 hover:text-red-400"
+                      >
+                        Logout
+                      </button>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      <Link
+                        href="/login"
+                        className="rounded-full border border-gold-400/40 px-4 py-2 text-gold-400 transition hover:bg-gold-400/10"
+                      >
+                        Sign In
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/signup"
+                        className="rounded-full bg-gold-400 px-4 py-2 text-zinc-950 transition hover:bg-gold-400/90"
+                      >
+                        Sign Up
+                      </Link>
+                    </li>
+                  </>
+                )
+              )}
             </ul>
           </nav>
         </div>
