@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Pagination from "../components/Pagination";
+import Toast from "../components/Toast";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,8 +75,11 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [modalState, setModalState] = useState<ModalState>({ type: null });
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [toast, setToast] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 8;
+
+  const closeToast = useCallback(() => setToast(null), []);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
@@ -106,10 +110,16 @@ export default function UsersPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const pageStart = filtered.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const pageEnd = Math.min(currentPage * ITEMS_PER_PAGE, filtered.length);
   const visible = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
   );
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   // ── Modals ────────────────────────────────────────────────────────────────
   const openCreate = () => {
@@ -139,6 +149,7 @@ export default function UsersPage() {
       if (!res.ok) throw new Error(data.error);
       await fetchUsers();
       closeModal();
+      setToast("User created successfully.");
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to create user");
     } finally {
@@ -160,6 +171,7 @@ export default function UsersPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       await fetchUsers();
       closeModal();
+      setToast("User updated successfully.");
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to update user");
     } finally {
@@ -176,6 +188,7 @@ export default function UsersPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       await fetchUsers();
       closeModal();
+      setToast("User deleted successfully.");
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to delete user");
     } finally {
@@ -263,6 +276,7 @@ export default function UsersPage() {
   // ---------------------------------------------------------------------------
   return (
     <>
+      <Toast message={toast} onClose={closeToast} />
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="rounded-[2rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -369,11 +383,18 @@ export default function UsersPage() {
           )}
         </div>
 
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
+        {!loading && !error && filtered.length > 0 && (
+          <div className="mt-6 space-y-3">
+            <p className="text-xs text-zinc-500">
+              Showing {pageStart}-{pageEnd} of {filtered.length} users
+            </p>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </section>
 
       {/* ── Modal ───────────────────────────────────────────────────────── */}

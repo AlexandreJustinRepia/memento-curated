@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ImagePicker from "../components/ImagePicker";
+import Toast from "../components/Toast";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,8 +85,12 @@ export default function ProductsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 6;
+
+  const closeToast = useCallback(() => setToast(null), []);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   const fetchProducts = useCallback(async () => {
@@ -138,6 +143,7 @@ export default function ProductsPage() {
       setForm(EMPTY_FORM);
       setCurrentPage(1);
       setIsCreateOpen(false);
+      setToast("Product created successfully.");
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to create product");
     } finally {
@@ -158,8 +164,10 @@ export default function ProductsPage() {
       });
       if (!res.ok) throw new Error((await res.json()).error);
       await fetchProducts();
+      setIsDeleteOpen(false);
       setSelectedProduct(null);
       setIsEditing(false);
+      setToast("Product updated successfully.");
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to update product");
     } finally {
@@ -170,7 +178,6 @@ export default function ProductsPage() {
   // ── Delete ───────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!selectedProduct) return;
-    if (!confirm(`Delete "${selectedProduct.name}"? This cannot be undone.`)) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/products/${selectedProduct.id}`, {
@@ -178,8 +185,10 @@ export default function ProductsPage() {
       });
       if (!res.ok) throw new Error((await res.json()).error);
       await fetchProducts();
+      setIsDeleteOpen(false);
       setSelectedProduct(null);
       setIsEditing(false);
+      setToast("Product deleted successfully.");
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to delete product");
     } finally {
@@ -199,6 +208,7 @@ export default function ProductsPage() {
       image_url:   p.image_url ?? "",
     });
     setIsEditing(false);
+    setIsDeleteOpen(false);
   };
 
   // ---------------------------------------------------------------------------
@@ -285,6 +295,7 @@ export default function ProductsPage() {
   // ---------------------------------------------------------------------------
   return (
     <>
+      <Toast message={toast} onClose={closeToast} />
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="rounded-[2rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -468,7 +479,7 @@ export default function ProductsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => { setSelectedProduct(null); setIsEditing(false); }}
+                onClick={() => { setSelectedProduct(null); setIsEditing(false); setIsDeleteOpen(false); }}
                 className="rounded-full border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400"
               >
                 Close
@@ -526,7 +537,7 @@ export default function ProductsPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleDelete}
+                    onClick={() => setIsDeleteOpen(true)}
                     disabled={saving}
                     className="rounded-full border border-red-500/30 px-4 py-3 text-sm font-semibold text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
                   >
@@ -535,6 +546,35 @@ export default function ProductsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {selectedProduct && isDeleteOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-400">Delete product</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Delete this product?</h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">
+              This will permanently delete <span className="font-semibold text-white">{selectedProduct.name}</span> from your catalog. This action cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsDeleteOpen(false)}
+                disabled={saving}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={saving}
+                className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-60"
+              >
+                {saving ? "Deleting..." : "Delete product"}
+              </button>
+            </div>
           </div>
         </div>
       )}
