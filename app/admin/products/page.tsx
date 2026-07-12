@@ -250,13 +250,17 @@ export default function ProductsPage() {
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-zinc-300">Description</label>
+        <div className="flex items-center gap-2">
+          <label className="block text-sm font-medium text-zinc-300">Description</label>
+          <span className="rounded-full border border-white/10 bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            Optional
+          </span>
+        </div>
         <textarea
-          required
           rows={3}
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          placeholder="A rich, crafted piece…"
+          placeholder="A rich, crafted piece… (leave blank to skip)"
           className="mt-2 w-full rounded-3xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
         />
       </div>
@@ -387,9 +391,13 @@ export default function ProductsPage() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-white">{product.name}</p>
-                        <p className="mt-1 max-h-10 overflow-hidden text-sm text-zinc-400">
-                          {product.description}
-                        </p>
+                        {product.description ? (
+                          <p className="mt-1 max-h-10 overflow-hidden text-sm text-zinc-400">
+                            {product.description}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-sm italic text-zinc-600">No description</p>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full border border-white/10 bg-zinc-950/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-300">
@@ -519,12 +527,14 @@ export default function ProductsPage() {
                   <Row label="Category" value={selectedProduct.category} />
                   <Row label="Price"    value={formatCurrency(Number(selectedProduct.price))} />
                   <Row label="Stock"    value={`${selectedProduct.stock} units`} />
-                  {selectedProduct.description && (
-                    <div>
-                      <p className="text-zinc-500">Description</p>
+                  <div>
+                    <p className="text-zinc-500">Description</p>
+                    {selectedProduct.description ? (
                       <p className="mt-1 text-zinc-200">{selectedProduct.description}</p>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="mt-1 italic text-zinc-600">No description provided</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
