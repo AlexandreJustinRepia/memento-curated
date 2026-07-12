@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
   // Supabase Storage requires a Blob/File — a raw Node.js Buffer is not accepted
   // and would result in the storage receiving garbled/empty data.
-  const blob = new Blob([optimizedBuffer], { type: "image/webp" });
+  const blob = new Blob([optimizedBuffer.buffer as ArrayBuffer], { type: "image/webp" });
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)

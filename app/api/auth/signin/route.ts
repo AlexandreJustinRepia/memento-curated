@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 // Regular (publishable) client for user-facing sign in
 const authClient = createClient(
@@ -16,6 +17,26 @@ const adminClient = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  // ── Rate limit: 5 sign-in attempts per 15 minutes per IP ────────────────
+  const ip = getClientIp(req);
+  const rl = rateLimit(ip, { id: "signin", limit: 5, windowMs: 15 * 60 * 1000 });
+
+  if (!rl.success) {
+    const retryAfterSec = Math.ceil((rl.resetAt - Date.now()) / 1000);
+    return NextResponse.json(
+      { error: "Too many sign-in attempts. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(retryAfterSec),
+          "X-RateLimit-Limit": "5",
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.ceil(rl.resetAt / 1000)),
+        },
+      }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const { email, password } = body ?? {};
 
