@@ -60,9 +60,13 @@ export async function POST(req: NextRequest) {
   // Generate a unique file name (always .webp since we converted)
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
 
+  // Supabase Storage requires a Blob/File — a raw Node.js Buffer is not accepted
+  // and would result in the storage receiving garbled/empty data.
+  const blob = new Blob([optimizedBuffer], { type: "image/webp" });
+
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(fileName, optimizedBuffer, {
+    .upload(fileName, blob, {
       contentType: "image/webp",
       upsert: false,
     });
