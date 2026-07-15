@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Toast from "./components/Toast";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -93,9 +94,9 @@ const recentActivity = [
 ];
 
 const quickActions = [
-  { label: "Add collection", hint: "Launch a new capsule" },
-  { label: "Review orders", hint: "Track pending requests" },
-  { label: "View audience", hint: "Inspect recent visitors" },
+  { label: "Add collection", hint: "Launch a new capsule", href: "/admin/products" },
+  { label: "Review orders", hint: "Track pending requests", action: "orders" },
+  { label: "View audience", hint: "Inspect recent visitors", href: "/admin" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,7 @@ export default function AdminPage() {
   const [visits, setVisits] = useState<VisitStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -274,23 +276,46 @@ export default function AdminPage() {
           <div className="rounded-[1.75rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-6">
             <p className="text-sm font-semibold text-white">Quick actions</p>
             <div className="mt-4 space-y-3">
-              {quickActions.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-zinc-950/70 px-3 py-3 text-left transition hover:border-gold-400/20 hover:bg-gold-400/10"
-                >
-                  <span>
-                    <span className="block text-sm font-medium text-white">
-                      {item.label}
+              {quickActions.map((item) => {
+                if (item.href) {
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-zinc-950/70 px-3 py-3 text-left transition hover:border-gold-400/20 hover:bg-gold-400/10"
+                    >
+                      <span>
+                        <span className="block text-sm font-medium text-white">
+                          {item.label}
+                        </span>
+                        <span className="mt-1 block text-sm text-zinc-400">
+                          {item.hint}
+                        </span>
+                      </span>
+                      <span className="text-sm text-gold-400">→</span>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => setToast("Orders management coming soon")}
+                    className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-zinc-950/70 px-3 py-3 text-left transition hover:border-gold-400/20 hover:bg-gold-400/10"
+                  >
+                    <span>
+                      <span className="block text-sm font-medium text-white">
+                        {item.label}
+                      </span>
+                      <span className="mt-1 block text-sm text-zinc-400">
+                        {item.hint}
+                      </span>
                     </span>
-                    <span className="mt-1 block text-sm text-zinc-400">
-                      {item.hint}
-                    </span>
-                  </span>
-                  <span className="text-sm text-gold-400">→</span>
-                </button>
-              ))}
+                    <span className="text-sm text-gold-400">→</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -316,6 +341,7 @@ export default function AdminPage() {
           </div>
         </div>
       </section>
+      <Toast message={toast} onClose={() => setToast(null)} />
     </>
   );
 }

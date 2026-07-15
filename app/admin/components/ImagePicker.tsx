@@ -24,6 +24,47 @@ type UploadResponse = {
   error?: string;
 };
 
+const MAX_WIDTH = 1200;
+const MAX_HEIGHT = 1200;
+const RESIZE_QUALITY = 0.82;
+
+async function resizeImage(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  let { width, height } = bitmap;
+
+  if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+    const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+    width = Math.floor(width * ratio);
+    height = Math.floor(height * ratio);
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  const mimeType = "image/webp";
+  const extension = "webp";
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(
+      (b) => resolve(b),
+      mimeType,
+      RESIZE_QUALITY
+    );
+  });
+
+  if (!blob) {
+    throw new Error("Failed to resize image");
+  }
+
+  return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.${extension}`, {
+    type: mimeType,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -85,11 +126,14 @@ export default function ImagePicker({ value, onChange }: Props) {
   const [libLoading, setLibLoading] = useState(false);
   const [libError, setLibError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Upload state
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [resizing, setResizing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // URL state
@@ -99,6 +143,7 @@ export default function ImagePicker({ value, onChange }: Props) {
   const fetchLibrary = useCallback(async () => {
     setLibLoading(true);
     setLibError(null);
+    setDeleteError(null);
     try {
       const res = await fetch("/api/admin/storage");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -119,12 +164,22 @@ export default function ImagePicker({ value, onChange }: Props) {
     setUploading(true);
     setUploadProgress(0);
     setUploadError(null);
+
     try {
-      const json = await uploadProductImage(file, setUploadProgress);
+      let processedFile = file;
+      if (file.size > 2 * 1024 * 1024) {
+        setResizing(true);
+        try {
+          processedFile = await resizeImage(file);
+        } finally {
+          setResizing(false);
+        }
+      }
+
+      const json = await uploadProductImage(processedFile, setUploadProgress);
       if (!json.url) throw new Error(json.error ?? "Upload failed");
       onChange(json.url);
       setOpen(false);
-      // Refresh library next time it opens
       setFiles([]);
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
@@ -141,6 +196,34 @@ export default function ImagePicker({ value, onChange }: Props) {
       onChange(selected);
       setOpen(false);
       setSelected(null);
+    }
+  };
+
+  const handleDelete = async (file: StorageFile) => {
+    setDeleteError(null);
+    setDeleting(file.name);
+    try {
+      const res = await fetch("/api/admin/storage", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? `Delete failed (HTTP ${res.status})`);
+      }
+
+      setFiles((prev) => prev.filter((f) => f.name !== file.name));
+
+      if (selected === file.url) {
+        setSelected(null);
+        onChange("");
+      }
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -273,41 +356,52 @@ export default function ImagePicker({ value, onChange }: Props) {
                   ) : (
                     <>
                       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                        {files.map((f) => (
-                          <button
-                            key={f.name}
-                            type="button"
-                            onClick={() =>
-                              setSelected(selected === f.url ? null : f.url)
-                            }
-                            className={`group relative aspect-square overflow-hidden rounded-2xl border-2 transition ${
-                              selected === f.url
-                                ? "border-gold-400 shadow-[0_0_0_2px_rgba(212,175,55,0.3)]"
-                                : "border-white/10 hover:border-white/30"
-                            }`}
-                          >
-                            <img
-                              src={f.url}
-                              alt={f.name}
-                              className="h-full w-full object-cover transition group-hover:scale-105 duration-300"
-                            />
-                            {selected === f.url && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gold-400/20">
-                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-sm font-bold text-zinc-950">
-                                  ✓
-                                </span>
-                              </div>
-                            )}
-                            <div className="absolute bottom-0 left-0 right-0 bg-zinc-950/80 px-2 py-1 opacity-0 group-hover:opacity-100 transition">
-                              <p className="truncate text-[10px] text-zinc-300">
-                                {f.name}
-                              </p>
-                              <p className="text-[10px] text-zinc-500">
-                                {formatBytes(f.size)}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
+                         {files.map((f) => (
+                           <button
+                             key={f.name}
+                             type="button"
+                             onClick={() =>
+                               setSelected(selected === f.url ? null : f.url)
+                             }
+                             className={`group relative aspect-square overflow-hidden rounded-2xl border-2 transition ${
+                               selected === f.url
+                                 ? "border-gold-400 shadow-[0_0_0_2px_rgba(212,175,55,0.3)]"
+                                 : "border-white/10 hover:border-white/30"
+                             }`}
+                           >
+                             <img
+                               src={f.url}
+                               alt={f.name}
+                               className="h-full w-full object-cover transition group-hover:scale-105 duration-300"
+                             />
+                             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition">
+                               {selected === f.url && (
+                                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-sm font-bold text-zinc-950">
+                                   ✓
+                                 </span>
+                               )}
+                             </div>
+                             <div className="absolute bottom-0 left-0 right-0 bg-zinc-950/80 px-2 py-1 opacity-0 group-hover:opacity-100 transition">
+                               <p className="truncate text-[10px] text-zinc-300">
+                                 {f.name}
+                               </p>
+                               <p className="text-[10px] text-zinc-500">
+                                 {formatBytes(f.size)}
+                               </p>
+                             </div>
+                             <button
+                               type="button"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleDelete(f);
+                               }}
+                               disabled={deleting === f.name}
+                               className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white opacity-0 transition group-hover:opacity-100 hover:bg-red-500 disabled:opacity-50"
+                             >
+                               {deleting === f.name ? "…" : "×"}
+                             </button>
+                           </button>
+                         ))}
                       </div>
 
                       <div className="mt-4 flex items-center justify-between">
@@ -322,6 +416,12 @@ export default function ImagePicker({ value, onChange }: Props) {
                           Refresh
                         </button>
                       </div>
+
+                      {deleteError && (
+                        <p className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+                          {deleteError}
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
@@ -332,22 +432,22 @@ export default function ImagePicker({ value, onChange }: Props) {
                 <div className="space-y-4">
                   <label
                     className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-white/20 bg-zinc-950/40 p-10 transition hover:border-gold-400/40 ${
-                      uploading ? "pointer-events-none opacity-60" : ""
+                      uploading || resizing ? "pointer-events-none opacity-60" : ""
                     }`}
                   >
                     <span className="text-3xl">⬆</span>
                     <span className="text-sm font-semibold text-zinc-200">
-                      {uploading ? "Uploading…" : "Click to choose a file"}
+                      {resizing ? "Resizing…" : uploading ? "Uploading…" : "Click to choose a file"}
                     </span>
                     <span className="text-xs text-zinc-500">
-                      Any image format · max 5 MB · auto-converted to WebP
+                      Any image format · client-side resized to 1200×1200 · auto-converted to WebP
                     </span>
                     <input
                       ref={fileRef}
                       type="file"
                       accept="image/*"
                       className="sr-only"
-                      disabled={uploading}
+                      disabled={uploading || resizing}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handleUpload(file);
@@ -365,12 +465,14 @@ export default function ImagePicker({ value, onChange }: Props) {
                     <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-sm text-zinc-300">
-                          {uploadProgress >= 100
+                          {resizing
+                            ? "Resizing image…"
+                            : uploadProgress >= 100
                             ? "Processing image…"
                             : "Uploading to server…"}
                         </span>
                         <span className="text-sm font-semibold text-gold-400">
-                          {uploadProgress}%
+                          {resizing ? "…" : `${uploadProgress}%`}
                         </span>
                       </div>
                       <div

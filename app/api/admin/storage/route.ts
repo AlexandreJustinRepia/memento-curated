@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -20,7 +20,6 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Filter out placeholder/folder entries and map to public URLs
   const files = (data ?? [])
     .filter((f) => f.name !== ".emptyFolderPlaceholder" && f.id)
     .map((f) => ({
@@ -31,4 +30,20 @@ export async function GET() {
     }));
 
   return NextResponse.json(files);
+}
+
+export async function DELETE(req: NextRequest) {
+  const { name } = (await req.json().catch(() => ({}))) as { name?: string };
+
+  if (!name) {
+    return NextResponse.json({ error: "Missing file name" }, { status: 400 });
+  }
+
+  const { error } = await supabase.storage.from(BUCKET).remove([name]);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
 }
