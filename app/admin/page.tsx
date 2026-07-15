@@ -57,7 +57,7 @@ function VisitBarChart({ daily }: { daily: DailyBucket[] }) {
             return (
               <div
                 key={bucket.date}
-                className="group relative flex flex-1 flex-col items-center"
+                className="group relative flex flex-1 flex-col items-center justify-end h-full"
               >
                 {/* Tooltip */}
                 <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-xl border border-white/10 bg-zinc-900 px-2 py-1 text-center text-xs text-zinc-200 shadow-lg group-hover:block whitespace-nowrap">
