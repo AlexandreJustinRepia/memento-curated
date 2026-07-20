@@ -166,14 +166,13 @@ export default function ImagePicker({ value, onChange }: Props) {
     setUploadError(null);
 
     try {
-      let processedFile = file;
-      if (file.size > 2 * 1024 * 1024) {
-        setResizing(true);
-        try {
-          processedFile = await resizeImage(file);
-        } finally {
-          setResizing(false);
-        }
+      // Always resize & convert to WebP — works for any resolution.
+      setResizing(true);
+      let processedFile: File;
+      try {
+        processedFile = await resizeImage(file);
+      } finally {
+        setResizing(false);
       }
 
       const json = await uploadProductImage(processedFile, setUploadProgress);
@@ -356,52 +355,61 @@ export default function ImagePicker({ value, onChange }: Props) {
                   ) : (
                     <>
                       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                         {files.map((f) => (
-                           <button
-                             key={f.name}
-                             type="button"
-                             onClick={() =>
-                               setSelected(selected === f.url ? null : f.url)
-                             }
-                             className={`group relative aspect-square overflow-hidden rounded-2xl border-2 transition ${
-                               selected === f.url
-                                 ? "border-gold-400 shadow-[0_0_0_2px_rgba(212,175,55,0.3)]"
-                                 : "border-white/10 hover:border-white/30"
-                             }`}
-                           >
-                             <img
-                               src={f.url}
-                               alt={f.name}
-                               className="h-full w-full object-cover transition group-hover:scale-105 duration-300"
-                             />
-                             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition">
-                               {selected === f.url && (
-                                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-sm font-bold text-zinc-950">
-                                   ✓
-                                 </span>
-                               )}
-                             </div>
-                             <div className="absolute bottom-0 left-0 right-0 bg-zinc-950/80 px-2 py-1 opacity-0 group-hover:opacity-100 transition">
-                               <p className="truncate text-[10px] text-zinc-300">
-                                 {f.name}
-                               </p>
-                               <p className="text-[10px] text-zinc-500">
-                                 {formatBytes(f.size)}
-                               </p>
-                             </div>
-                             <button
-                               type="button"
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 handleDelete(f);
-                               }}
-                               disabled={deleting === f.name}
-                               className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white opacity-0 transition group-hover:opacity-100 hover:bg-red-500 disabled:opacity-50"
-                             >
-                               {deleting === f.name ? "…" : "×"}
-                             </button>
-                           </button>
-                         ))}
+                        {files.map((f) => (
+                          // Use div[role=button] so the inner delete <button>
+                          // is not a descendant of another <button>.
+                          <div
+                            key={f.name}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() =>
+                              setSelected(selected === f.url ? null : f.url)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setSelected(selected === f.url ? null : f.url);
+                              }
+                            }}
+                            className={`group relative aspect-square cursor-pointer overflow-hidden rounded-2xl border-2 transition ${
+                              selected === f.url
+                                ? "border-gold-400 shadow-[0_0_0_2px_rgba(212,175,55,0.3)]"
+                                : "border-white/10 hover:border-white/30"
+                            }`}
+                          >
+                            <img
+                              src={f.url}
+                              alt={f.name}
+                              className="h-full w-full object-cover transition group-hover:scale-105 duration-300"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition">
+                              {selected === f.url && (
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-sm font-bold text-zinc-950">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 bg-zinc-950/80 px-2 py-1 opacity-0 group-hover:opacity-100 transition">
+                              <p className="truncate text-[10px] text-zinc-300">
+                                {f.name}
+                              </p>
+                              <p className="text-[10px] text-zinc-500">
+                                {formatBytes(f.size)}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(f);
+                              }}
+                              disabled={deleting === f.name}
+                              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white opacity-0 transition group-hover:opacity-100 hover:bg-red-500 disabled:opacity-50"
+                            >
+                              {deleting === f.name ? "…" : "×"}
+                            </button>
+                          </div>
+                        ))}
                       </div>
 
                       <div className="mt-4 flex items-center justify-between">
@@ -440,7 +448,7 @@ export default function ImagePicker({ value, onChange }: Props) {
                       {resizing ? "Resizing…" : uploading ? "Uploading…" : "Click to choose a file"}
                     </span>
                     <span className="text-xs text-zinc-500">
-                      Any image format · client-side resized to 1200×1200 · auto-converted to WebP
+                      Any image · any resolution · auto-optimised to WebP
                     </span>
                     <input
                       ref={fileRef}

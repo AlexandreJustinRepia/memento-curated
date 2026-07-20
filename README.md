@@ -33,7 +33,7 @@ The interface adheres to a luxury aesthetic: deep obsidian/charcoal backdrops, r
 ```bash
 npm install
 npm run dev
-```
+``` 
 
 Open [http://localhost:3000](http://localhost:3000) to view the storefront.  
 Open [http://localhost:3000/admin](http://localhost:3000/admin) for the admin panel.

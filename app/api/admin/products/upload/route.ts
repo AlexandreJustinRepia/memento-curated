@@ -8,9 +8,14 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY!
 );
 
+// Route-segment config — raise body limit so large images can reach Sharp.
+export const config = {
+  api: { bodyParser: { sizeLimit: "50mb" } },
+};
+
 const BUCKET = "product-images";
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB (pre-optimization)
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+// Accept any image — Sharp will resize & compress before uploading.
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/heic", "image/bmp", "image/tiff"];
 
 // Sharp optimization settings
 const MAX_WIDTH = 1200;
@@ -30,10 +35,6 @@ export async function POST(req: NextRequest) {
       { error: `Unsupported type: ${file.type}` },
       { status: 415 }
     );
-  }
-
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "File exceeds 5 MB limit" }, { status: 413 });
   }
 
   // Read the raw buffer
