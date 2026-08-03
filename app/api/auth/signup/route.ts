@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const { name, email, password } = body ?? {};
 
   if (!name || !email || !password) {
-    return NextResponse.json({ error: "name, email and password are required" }, { status: 400 });
+    return NextResponse.json({ error: "name, email anxd password are required" }, { status: 400 });
   }
 
   if (password.length < 6) {
