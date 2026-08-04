@@ -16,6 +16,8 @@ type Product = {
   image_url: string | null;
   description: string | null;
   stock: number;
+  avg_rating: number | null;
+  rating_count: number;
 };
 
 type SessionUser = {
@@ -85,6 +87,20 @@ function NoImage({ name }: { name: string }) {
       <span className="text-xs uppercase tracking-widest opacity-50 text-center px-4 leading-relaxed">
         {name}
       </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// StarRating helper
+// ---------------------------------------------------------------------------
+function StarRating({ value, count }: { value: number | null; count: number }) {
+  if (!value || count === 0) return null;
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-gold-400 text-xs">★</span>
+      <span className="text-xs font-semibold text-zinc-300">{value.toFixed(1)}</span>
+      <span className="text-[10px] text-zinc-500">({count})</span>
     </div>
   );
 }
@@ -538,6 +554,7 @@ export default function Home() {
                             {formatCurrency(Number(product.price))}
                           </span>
                         </div>
+                        <StarRating value={product.avg_rating} count={product.rating_count} />
                         {product.description && (
                           <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
                             {product.description}
@@ -554,6 +571,64 @@ export default function Home() {
                   ))}
                 </AnimatePresence>
               </motion.div>
+            )}
+          </div>
+        </section>
+
+        {/* ── Ratings Section ─────────────────────────────────────────── */}
+        <section className="py-24 border-t border-white/5 bg-zinc-950 relative">
+          <div className="container mx-auto px-6 max-w-[1400px]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end mb-16">
+              <div className="lg:col-span-7 space-y-4">
+                <span className="text-xs uppercase tracking-[0.2em] text-gold-400 font-semibold block">
+                  Customer Reviews
+                </span>
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-100">
+                  What Our Clients Say
+                </h2>
+                <div className="w-20 h-[1px] bg-gold-400" />
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-4 animate-pulse">
+                    <div className="h-4 bg-zinc-800 rounded-full w-3/4" />
+                    <div className="h-3 bg-zinc-800 rounded-full w-full" />
+                    <div className="h-3 bg-zinc-800 rounded-full w-5/6" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {(() => {
+                  const rated = products.filter((p) => p.avg_rating && p.rating_count > 0);
+                  const topRated = [...rated].sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0)).slice(0, 6);
+                  if (topRated.length === 0) {
+                    return (
+                      <div className="col-span-full py-16 text-center">
+                        <p className="text-zinc-500 text-sm">No ratings yet. Be the first to review a product.</p>
+                      </div>
+                    );
+                  }
+                  return topRated.map((product) => (
+                    <div
+                      key={product.id}
+                      className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-3 hover:border-gold-400/30 transition-colors duration-300"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-sans text-base font-bold text-zinc-100 line-clamp-1">{product.name}</h3>
+                        <span className="font-mono text-sm font-semibold text-gold-400 shrink-0">{formatCurrency(Number(product.price))}</span>
+                      </div>
+                      <StarRating value={product.avg_rating} count={product.rating_count} />
+                      {product.description && (
+                        <p className="text-xs text-zinc-400 line-clamp-3 leading-relaxed">{product.description}</p>
+                      )}
+                    </div>
+                  ));
+                })()}
+              </div>
             )}
           </div>
         </section>

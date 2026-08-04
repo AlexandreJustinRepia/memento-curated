@@ -17,6 +17,8 @@ type Product = {
   stock: number;
   image_url: string | null;
   created_at: string;
+  avg_rating: number | null;
+  rating_count: number;
 };
 
 type FormState = {
@@ -70,6 +72,15 @@ function Shimmer() {
   );
 }
 
+function StarRating({ value, count }: { value: number | null; count: number }) {
+  if (!value || count === 0) return null;
+  return (
+    <span className="text-xs font-medium text-gold-400">
+      ★ {value.toFixed(1)} <span className="text-zinc-500">({count})</span>
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -99,7 +110,47 @@ export default function ProductsPage() {
     try {
       const res = await fetch("/api/admin/products");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setProducts(await res.json());
+      const products = await res.json() as Product[];
+      const productIds = products.map((p) => p.id);
+
+      const ratingsMap: Record<number, { avg_rating: number | null; rating_count: number }> = {};
+
+      if (productIds.length > 0) {
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabaseClient = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SECRET_KEY!
+        );
+        const { data: ratingsData } = await supabaseClient
+          .from("ratings")
+          .select("product_id, rating")
+          .in("product_id", productIds);
+
+        if (ratingsData) {
+          const grouped: Record<number, { sum: number; count: number }> = {};
+          for (const r of ratingsData) {
+            if (!grouped[r.product_id]) {
+              grouped[r.product_id] = { sum: 0, count: 0 };
+            }
+            grouped[r.product_id].sum += r.rating;
+            grouped[r.product_id].count += 1;
+          }
+          for (const [pid, stats] of Object.entries(grouped)) {
+            ratingsMap[Number(pid)] = {
+              avg_rating: Number((stats.sum / stats.count).toFixed(1)),
+              rating_count: stats.count,
+            };
+          }
+        }
+      }
+
+      const enriched = products.map((p) => ({
+        ...p,
+        avg_rating: ratingsMap[p.id]?.avg_rating ?? null,
+        rating_count: ratingsMap[p.id]?.rating_count ?? 0,
+      }));
+
+      setProducts(enriched);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load products");
     } finally {
@@ -108,6 +159,7 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProducts();
   }, [fetchProducts]);
 
@@ -406,6 +458,7 @@ export default function ProductsPage() {
                         <span className="rounded-full border border-white/10 bg-zinc-950/80 px-3 py-1 text-xs font-semibold text-zinc-400">
                           {product.stock} in stock
                         </span>
+                        <StarRating value={product.avg_rating} count={product.rating_count} />
                       </div>
                     </div>
                     <p className="text-sm font-semibold text-gold-400">
@@ -527,6 +580,11 @@ export default function ProductsPage() {
                   <Row label="Category" value={selectedProduct.category} />
                   <Row label="Price"    value={formatCurrency(Number(selectedProduct.price))} />
                   <Row label="Stock"    value={`${selectedProduct.stock} units`} />
+                  <Row label="Rating"   value={
+                    selectedProduct.avg_rating
+                      ? `${selectedProduct.avg_rating.toFixed(1)} / 5 (${selectedProduct.rating_count} reviews)`
+                      : "No ratings yet"
+                  } />
                   <div>
                     <p className="text-zinc-500">Description</p>
                     {selectedProduct.description ? (

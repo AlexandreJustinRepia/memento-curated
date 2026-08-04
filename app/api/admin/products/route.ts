@@ -16,7 +16,42 @@ export async function GET() {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json(data);
+
+  const products = data ?? [];
+  const productIds = products.map((p: { id: number }) => p.id);
+
+  const ratingsMap: Record<number, { avg_rating: number | null; rating_count: number }> = {};
+  if (productIds.length > 0) {
+    const { data: ratingsData } = await supabase
+      .from("ratings")
+      .select("product_id, rating")
+      .in("product_id", productIds);
+
+    if (ratingsData) {
+      const grouped: Record<number, { sum: number; count: number }> = {};
+      for (const r of ratingsData) {
+        if (!grouped[r.product_id]) {
+          grouped[r.product_id] = { sum: 0, count: 0 };
+        }
+        grouped[r.product_id].sum += r.rating;
+        grouped[r.product_id].count += 1;
+      }
+      for (const [pid, stats] of Object.entries(grouped)) {
+        ratingsMap[Number(pid)] = {
+          avg_rating: Number((stats.sum / stats.count).toFixed(1)),
+          rating_count: stats.count,
+        };
+      }
+    }
+  }
+
+  const enriched = products.map((p: { id: number; [key: string]: unknown }) => ({
+    ...p,
+    avg_rating: ratingsMap[p.id]?.avg_rating ?? null,
+    rating_count: ratingsMap[p.id]?.rating_count ?? 0,
+  }));
+
+  return NextResponse.json(enriched);
 }
 
 // POST /api/admin/products — create a product
