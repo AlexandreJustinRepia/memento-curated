@@ -145,6 +145,8 @@ export default function Home() {
   const [reviewAppearance, setReviewAppearance] = useState(0);
   const [reviewValue, setReviewValue] = useState(0);
   const [reviewMatches, setReviewMatches] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLLIElement>(null);
 
   // Check auth status on mount
@@ -166,6 +168,23 @@ export default function Home() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Infinite scroll loader for products
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + 8);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [loading]);
+
+  const handleLoadMore = () => setVisibleCount((prev) => prev + 8);
 
   const handleLogout = async () => {
     await fetch("/api/auth/signout", { method: "POST" });
@@ -247,6 +266,9 @@ export default function Home() {
     selectedCategory === "All"
       ? products
       : products.filter((p) => p.category === selectedCategory);
+
+  const displayedProducts = filteredProducts.slice(0, visibleCount);
+  const hasMore = displayedProducts.length < filteredProducts.length;
 
   return (
     <>
@@ -540,6 +562,12 @@ export default function Home() {
                   >
                     View Gallery
                   </Link>
+                  <Link
+                    href="#collections"
+                    className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-white/20 bg-zinc-900/40 text-zinc-200 font-bold uppercase tracking-wider text-xs transition-all hover:border-gold-400/40 hover:text-gold-400 active:scale-[0.98]"
+                  >
+                    View All Products
+                  </Link>
                 </motion.div>
               </motion.div>
 
@@ -636,12 +664,13 @@ export default function Home() {
                 </p>
               </div>
             ) : (
-              <motion.div
-                layout
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
-              >
-                <AnimatePresence mode="popLayout">
-                  {filteredProducts.map((product) => (
+              <>
+                <motion.div
+                  layout
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
+                >
+                  <AnimatePresence mode="popLayout">
+                    {displayedProducts.map((product) => (
                     <motion.div
                       layout
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -699,6 +728,24 @@ export default function Home() {
                   ))}
                 </AnimatePresence>
               </motion.div>
+
+              {/* Load more sentinel + button */}
+              {hasMore && (
+                <div className="mt-16 flex flex-col items-center gap-6">
+                  <div ref={loadMoreRef} className="h-1 w-full" />
+                  <button
+                    type="button"
+                    onClick={handleLoadMore}
+                    className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-gold-400 text-zinc-950 font-bold uppercase tracking-wider text-xs transition-all hover:bg-gold-400/90 active:scale-[0.98] shadow-[0_8px_20px_-4px_rgba(212,175,55,0.4)]"
+                  >
+                    Load More
+                  </button>
+                  <p className="text-[10px] text-zinc-600">
+                    Showing {displayedProducts.length} of {filteredProducts.length} products
+                  </p>
+                </div>
+              )}
+              </>
             )}
           </div>
         </section>
