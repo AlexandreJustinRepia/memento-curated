@@ -742,84 +742,81 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end mb-16">
-              <div className="lg:col-span-7 space-y-4">
-                <span className="text-xs uppercase tracking-[0.2em] text-gold-400 font-semibold block">
-                  Customer Reviews
-                </span>
-                <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-100">
-                  Rated 4.8 / 5
-                </h2>
-                <div className="w-20 h-[1px] bg-gold-400" />
-              </div>
-              <div className="lg:col-span-5 flex justify-start lg:justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!session) {
-                      setIsAuthModalOpen(true);
-                      return;
-                    }
-                    setReviewRating(0);
-                    setReviewQuality(0);
-                    setReviewAppearance(0);
-                    setReviewValue(0);
-                    setReviewMatches(0);
-                    setIsReviewModalOpen(true);
-                  }}
-                  className="rounded-full bg-gold-400 px-6 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90"
-                >
-                  Write a Review
-                </button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-4 animate-pulse">
-                    <div className="h-4 bg-zinc-800 rounded-full w-3/4" />
-                    <div className="h-3 bg-zinc-800 rounded-full w-full" />
-                    <div className="h-3 bg-zinc-800 rounded-full w-5/6" />
+            {/* ── Stats ──────────────────────────────────────────────────── */}
+            <div className="border-t border-b border-white/5 py-12 mb-24">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                {[
+                  { value: "500+", label: "Happy Customers" },
+                  { value: "120+", label: "Curated Products" },
+                  { value: "4.8 / 5", label: "Average Rating" },
+                ].map((stat, idx) => (
+                  <div key={idx} className="text-center space-y-2">
+                    <p className="text-3xl md:text-4xl font-bold text-gold-400">{stat.value}</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{stat.label}</p>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {(() => {
-                  const rated = products.filter((p) => p.avg_rating && p.rating_count > 0);
-                  const topRated = [...rated].sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0)).slice(0, 6);
+            </div>
 
-                  if (topRated.length === 0) {
-                    return (
-                      <div className="col-span-full py-16 text-center space-y-4">
-                        <p className="text-zinc-500 text-sm">No ratings yet.</p>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-zinc-950/80 px-4 py-2 text-xs text-zinc-400">
-                          <span className="text-gold-400">★</span> 4.8 / 5 average across all products
-                        </div>
-                        <p className="text-[10px] text-zinc-600">Ratings and reviews will appear here as customers share their experiences.</p>
-                      </div>
-                    );
-                  }
-
-                  return topRated.map((product) => (
-                    <div
-                      key={product.id}
-                      className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-3 hover:border-gold-400/30 transition-colors duration-300"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-sans text-base font-bold text-zinc-100 line-clamp-1">{product.name}</h3>
-                        <span className="font-mono text-sm font-semibold text-gold-400 shrink-0">{formatCurrency(Number(product.price))}</span>
-                      </div>
-                      <StarRating value={product.avg_rating} count={product.rating_count} />
-                      {product.description && (
-                        <p className="text-xs text-zinc-400 line-clamp-3 leading-relaxed">{product.description}</p>
-                      )}
-                    </div>
-                  ));
-                })()}
+            {/* ── Fake Testimonials ──────────────────────────────────────── */}
+            <div className="mt-24 mb-16">
+              <div className="text-center mb-12 space-y-4">
+                <span className="text-xs uppercase tracking-[0.2em] text-gold-400 font-semibold block">
+                  Testimonials
+                </span>
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-100">
+                  What Our Customers Say
+                </h2>
+                <div className="w-20 h-[1px] bg-gold-400 mx-auto" />
               </div>
-            )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                  {
+                    name: "Sarah M.",
+                    initials: "SM",
+                    rating: 5,
+                    text: "Absolutely stunning quality. The packaging was beautiful and made the perfect gift. I will definitely be ordering again!",
+                    date: "2 weeks ago",
+                  },
+                  {
+                    name: "James R.",
+                    initials: "JR",
+                    rating: 5,
+                    text: "Fast shipping and the craftsmanship is unmatched. The customer service team was incredibly helpful when I needed sizing advice.",
+                    date: "1 month ago",
+                  },
+                  {
+                    name: "Elena K.",
+                    initials: "EK",
+                    rating: 5,
+                    text: "I bought a necklace for my wife and she loves it. The attention to detail is remarkable. Highly recommend Memento!",
+                    date: "1 month ago",
+                  },
+                ].map((review, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-gold-400/20 flex items-center justify-center text-xs font-bold uppercase text-gold-400">
+                        {review.initials}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-100">{review.name}</p>
+                        <p className="text-[10px] text-zinc-500">{review.date}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span key={star} className={`text-sm ${star <= review.rating ? "text-gold-400" : "text-zinc-700"}`}>★</span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{review.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
