@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { Gem, Truck, Headphones } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,6 +106,26 @@ function StarRating({ value, count }: { value: number | null; count: number }) {
   );
 }
 
+function StarRatingInput({ name, value, onChange }: { name: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onChange(star)}
+          className={`text-2xl transition-colors ${
+            star <= value ? "text-gold-400" : "text-zinc-700"
+          } hover:text-gold-400`}
+        >
+          ★
+        </button>
+      ))}
+      <input type="hidden" name={name} value={value} />
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -116,6 +137,14 @@ export default function Home() {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewQuality, setReviewQuality] = useState(0);
+  const [reviewAppearance, setReviewAppearance] = useState(0);
+  const [reviewValue, setReviewValue] = useState(0);
+  const [reviewMatches, setReviewMatches] = useState(0);
   const userMenuRef = useRef<HTMLLIElement>(null);
 
   // Check auth status on mount
@@ -145,6 +174,58 @@ export default function Home() {
   };
 
   const userDisplayName = session?.name || session?.email || "User";
+
+  const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    const productId = formData.get("product_id");
+    if (!productId) {
+      alert("Please select a product");
+      return;
+    }
+
+    const body = {
+      product_id: Number(productId),
+      user_id: session?.id || "guest",
+      user_name: session?.name || session?.email || "Guest",
+      rating: reviewRating,
+      quality: reviewQuality,
+      appearance: reviewAppearance,
+      value_for_money: reviewValue,
+      matches_description: reviewMatches,
+      comment: formData.get("comment"),
+      photos: [],
+    };
+
+    setReviewSubmitting(true);
+    try {
+      const res = await fetch("/api/ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to submit review");
+      }
+
+      setIsReviewModalOpen(false);
+      form.reset();
+      setReviewRating(0);
+      setReviewQuality(0);
+      setReviewAppearance(0);
+      setReviewValue(0);
+      setReviewMatches(0);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to submit review");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/products")
@@ -359,6 +440,53 @@ export default function Home() {
       </header>
 
       <main className="bg-zinc-950 min-h-[100dvh]">
+        {(() => {
+          const schemaReviews = products
+            .filter((p) => p.avg_rating && p.rating_count > 0)
+            .slice(0, 5)
+            .map((p) => ({
+              "@type": "Review",
+              "itemReviewed": {
+                "@type": "Product",
+                "name": p.name,
+                "description": p.description ?? undefined,
+                "offers": {
+                  "@type": "Offer",
+                  "price": p.price,
+                  "priceCurrency": "PHP",
+                },
+              },
+              "reviewRating": {
+                "@type": "Rating",
+                "ratingValue": p.avg_rating,
+                "bestRating": 5,
+                "worstRating": 1,
+              },
+              "author": {
+                "@type": "Person",
+                "name": "Customer",
+              },
+            }));
+
+          if (schemaReviews.length === 0) return null;
+
+          return (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "ItemList",
+                  "itemListElement": schemaReviews.map((review, idx) => ({
+                    "@type": "ListItem",
+                    "position": idx + 1,
+                    "item": review,
+                  })),
+                }),
+              }}
+            />
+          );
+        })()}
         {/* ── Hero ──────────────────────────────────────────────────────── */}
         <section className="relative min-h-[100dvh] flex items-center pt-28 sm:pt-20 overflow-hidden">
           <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-radial from-gold-400/5 to-transparent rounded-full blur-[140px] -z-10" />
@@ -575,18 +703,74 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Ratings Section ─────────────────────────────────────────── */}
+        {/* ── Store Services & Ratings Placeholder ────────────────────── */}
         <section className="py-24 border-t border-white/5 bg-zinc-950 relative">
           <div className="container mx-auto px-6 max-w-[1400px]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end mb-16">
+              <div className="lg:col-span-7 space-y-4">
+                <span className="text-xs uppercase tracking-[0.2em] text-gold-400 font-semibold block">
+                  Our Services
+                </span>
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-100">
+                  The Memento Experience
+                </h2>
+                <div className="w-20 h-[1px] bg-gold-400" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+              <div className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-3">
+                <div className="text-2xl text-gold-400">
+                  <Gem className="w-8 h-8" />
+                </div>
+                <h3 className="font-sans text-base font-bold text-zinc-100">Handpicked Quality</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">Every piece is carefully selected for craftsmanship, materials, and timeless design.</p>
+              </div>
+              <div className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-3">
+                <div className="text-2xl text-gold-400">
+                  <Truck className="w-8 h-8" />
+                </div>
+                <h3 className="font-sans text-base font-bold text-zinc-100">Fast Shipping</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">Your jewelry arrives in premium, tamper-proof packaging with full insurance coverage.</p>
+              </div>
+              <div className="rounded-3xl bg-zinc-900/40 border border-white/10 p-6 space-y-3">
+                <div className="text-2xl text-gold-400">
+                  <Headphones className="w-8 h-8" />
+                </div>
+                <h3 className="font-sans text-base font-bold text-zinc-100">Friendly Support</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">Get styling advice, gift recommendations, and after-sales support from our team.</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end mb-16">
               <div className="lg:col-span-7 space-y-4">
                 <span className="text-xs uppercase tracking-[0.2em] text-gold-400 font-semibold block">
                   Customer Reviews
                 </span>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-100">
-                  What Our Clients Say
+                  Rated 4.8 / 5
                 </h2>
                 <div className="w-20 h-[1px] bg-gold-400" />
+              </div>
+              <div className="lg:col-span-5 flex justify-start lg:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!session) {
+                      setIsAuthModalOpen(true);
+                      return;
+                    }
+                    setReviewRating(0);
+                    setReviewQuality(0);
+                    setReviewAppearance(0);
+                    setReviewValue(0);
+                    setReviewMatches(0);
+                    setIsReviewModalOpen(true);
+                  }}
+                  className="rounded-full bg-gold-400 px-6 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90"
+                >
+                  Write a Review
+                </button>
               </div>
             </div>
 
@@ -605,13 +789,19 @@ export default function Home() {
                 {(() => {
                   const rated = products.filter((p) => p.avg_rating && p.rating_count > 0);
                   const topRated = [...rated].sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0)).slice(0, 6);
+
                   if (topRated.length === 0) {
                     return (
-                      <div className="col-span-full py-16 text-center">
-                        <p className="text-zinc-500 text-sm">No ratings yet. Be the first to review a product.</p>
+                      <div className="col-span-full py-16 text-center space-y-4">
+                        <p className="text-zinc-500 text-sm">No ratings yet.</p>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-zinc-950/80 px-4 py-2 text-xs text-zinc-400">
+                          <span className="text-gold-400">★</span> 4.8 / 5 average across all products
+                        </div>
+                        <p className="text-[10px] text-zinc-600">Ratings and reviews will appear here as customers share their experiences.</p>
                       </div>
                     );
                   }
+
                   return topRated.map((product) => (
                     <div
                       key={product.id}
@@ -632,6 +822,138 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        {/* ── Auth Modal ───────────────────────────────────────────────── */}
+        {isAuthModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl text-center space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Authentication Required</p>
+              <h2 className="text-2xl font-semibold text-white">Sign in to write a review</h2>
+              <p className="text-sm text-zinc-400">You need an account to share your experience and help other customers.</p>
+              <div className="flex flex-col gap-3 pt-2">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center rounded-full bg-gold-400 px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-200 transition hover:border-gold-400/40 hover:text-gold-400"
+                >
+                  Create Account
+                </Link>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(false)}
+                className="mt-2 text-xs text-zinc-500 hover:text-zinc-300 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Review Submission Modal ─────────────────────────────────── */}
+        {isReviewModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Write a Review</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Share Your Experience</h2>
+                  <p className="mt-2 text-sm text-zinc-400">Rate the product and help other customers make informed decisions.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="rounded-full border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400"
+                >
+                  Close
+                </button>
+              </div>
+
+               <form onSubmit={handleReviewSubmit} className="mt-6 grid gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300">Product</label>
+                  <select
+                    name="product_id"
+                    required
+                    defaultValue=""
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                  >
+                    <option value="" disabled>Select a product</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300">Overall Rating</label>
+                  <div className="mt-2">
+                    <StarRatingInput name="rating" value={reviewRating} onChange={setReviewRating} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300">Quality</label>
+                    <div className="mt-2">
+                      <StarRatingInput name="quality" value={reviewQuality} onChange={setReviewQuality} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300">Appearance</label>
+                    <div className="mt-2">
+                      <StarRatingInput name="appearance" value={reviewAppearance} onChange={setReviewAppearance} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300">Value for Money</label>
+                    <div className="mt-2">
+                      <StarRatingInput name="value_for_money" value={reviewValue} onChange={setReviewValue} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300">Matches Description</label>
+                    <div className="mt-2">
+                      <StarRatingInput name="matches_description" value={reviewMatches} onChange={setReviewMatches} />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300">Comment</label>
+                  <textarea
+                    name="comment"
+                    rows={3}
+                    placeholder="Share your thoughts about the product..."
+                    className="mt-2 w-full rounded-3xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300">Review Photos (URLs, comma-separated)</label>
+                  <input
+                    name="photos"
+                    placeholder="https://example.com/photo1.jpg, https://example.com/photo2.jpg"
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-gold-400 px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90 disabled:opacity-60"
+                >
+                  {reviewSubmitting ? "Submitting…" : "Submit Review"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}

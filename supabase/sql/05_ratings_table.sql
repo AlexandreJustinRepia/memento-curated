@@ -7,13 +7,18 @@
 -- 1. TABLE: ratings
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.ratings (
-  id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  product_id   bigint      NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-  user_id      text        NOT NULL,
-  user_name    text        NOT NULL,
-  rating       integer     NOT NULL CHECK (rating >= 1 AND rating <= 5),
-  comment      text,
-  created_at   timestamptz NOT NULL DEFAULT now()
+  id                 bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  product_id         bigint      NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  user_id            text        NOT NULL,
+  user_name          text        NOT NULL,
+  rating             integer     NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  quality            integer     NOT NULL CHECK (quality >= 1 AND quality <= 5),
+  appearance         integer     NOT NULL CHECK (appearance >= 1 AND appearance <= 5),
+  value_for_money    integer     NOT NULL CHECK (value_for_money >= 1 AND value_for_money <= 5),
+  matches_description integer    NOT NULL CHECK (matches_description >= 1 AND matches_description <= 5),
+  comment            text,
+  photos             text[]      DEFAULT '{}',
+  created_at         timestamptz NOT NULL DEFAULT now()
 );
 
 -- Indexes

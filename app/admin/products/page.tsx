@@ -21,6 +21,21 @@ type Product = {
   rating_count: number;
 };
 
+type Review = {
+  id: number;
+  product_id: number;
+  user_id: string;
+  user_name: string;
+  rating: number;
+  quality: number;
+  appearance: number;
+  value_for_money: number;
+  matches_description: number;
+  comment: string | null;
+  photos: string[];
+  created_at: string;
+};
+
 type FormState = {
   name: string;
   description: string;
@@ -98,6 +113,7 @@ export default function ProductsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [productReviews, setProductReviews] = useState<Review[]>([]);
 
   const ITEMS_PER_PAGE = 6;
 
@@ -261,6 +277,12 @@ export default function ProductsPage() {
     });
     setIsEditing(false);
     setIsDeleteOpen(false);
+    setProductReviews([]);
+
+    fetch(`/api/ratings?product_id=${p.id}`)
+      .then((r) => r.json())
+      .then((data) => setProductReviews(Array.isArray(data) ? data : []))
+      .catch(() => setProductReviews([]));
   };
 
   // ---------------------------------------------------------------------------
@@ -594,6 +616,53 @@ export default function ProductsPage() {
                     )}
                   </div>
                 </div>
+
+                {productReviews.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-white">Customer Reviews</p>
+                    {productReviews.map((review) => (
+                      <div key={review.id} className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-zinc-200">{review.user_name}</span>
+                          <span className="text-xs text-zinc-500">{new Date(review.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center justify-between rounded-lg bg-zinc-900/60 px-3 py-2">
+                            <span className="text-zinc-500">Quality</span>
+                            <span className="text-zinc-300">★ {review.quality}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg bg-zinc-900/60 px-3 py-2">
+                            <span className="text-zinc-500">Appearance</span>
+                            <span className="text-zinc-300">★ {review.appearance}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg bg-zinc-900/60 px-3 py-2">
+                            <span className="text-zinc-500">Value</span>
+                            <span className="text-zinc-300">★ {review.value_for_money}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg bg-zinc-900/60 px-3 py-2">
+                            <span className="text-zinc-500">Matches</span>
+                            <span className="text-zinc-300">★ {review.matches_description}</span>
+                          </div>
+                        </div>
+                        {review.comment && (
+                          <p className="mt-2 text-xs text-zinc-400">{review.comment}</p>
+                        )}
+                        {review.photos && review.photos.length > 0 && (
+                          <div className="mt-2 flex gap-2 overflow-x-auto">
+                            {review.photos.map((photo, idx) => (
+                              <img
+                                key={idx}
+                                src={photo}
+                                alt={`Review photo ${idx + 1}`}
+                                className="h-12 w-12 shrink-0 rounded-lg object-cover border border-white/10"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <button

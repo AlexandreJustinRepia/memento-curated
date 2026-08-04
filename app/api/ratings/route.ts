@@ -29,25 +29,45 @@ export async function GET(req: NextRequest) {
 // POST /api/ratings
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  if (!body?.product_id || !body?.user_id || !body?.user_name || !body?.rating) {
+  if (
+    !body?.product_id ||
+    !body?.user_id ||
+    !body?.user_name ||
+    !body?.rating ||
+    !body?.quality ||
+    !body?.appearance ||
+    !body?.value_for_money ||
+    !body?.matches_description
+  ) {
     return NextResponse.json(
-      { error: "product_id, user_id, user_name, and rating are required" },
+      { error: "product_id, user_id, user_name, rating, quality, appearance, value_for_money, and matches_description are required" },
       { status: 400 }
     );
   }
 
-  if (body.rating < 1 || body.rating > 5) {
-    return NextResponse.json({ error: "rating must be between 1 and 5" }, { status: 400 });
+  const rating = Number(body.rating);
+  const quality = Number(body.quality);
+  const appearance = Number(body.appearance);
+  const valueForMoney = Number(body.value_for_money);
+  const matchesDescription = Number(body.matches_description);
+
+  if ([rating, quality, appearance, valueForMoney, matchesDescription].some((n) => n < 1 || n > 5)) {
+    return NextResponse.json({ error: "All ratings must be between 1 and 5" }, { status: 400 });
   }
 
   const { data, error } = await supabase
     .from("ratings")
     .insert({
-      product_id: Number(body.product_id),
-      user_id:    body.user_id,
-      user_name:  body.user_name,
-      rating:     Number(body.rating),
-      comment:    body.comment ?? null,
+      product_id:         Number(body.product_id),
+      user_id:            body.user_id,
+      user_name:          body.user_name,
+      rating,
+      quality,
+      appearance,
+      value_for_money:    valueForMoney,
+      matches_description: matchesDescription,
+      comment:            body.comment ?? null,
+      photos:             Array.isArray(body.photos) ? body.photos : [],
     })
     .select()
     .single();
