@@ -341,6 +341,16 @@ export default function Home() {
                               Dashboard
                             </Link>
                           )}
+                          <Link
+                            href="/profile"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-gold-400/10 hover:text-gold-400"
+                          >
+                            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.25h15.004c.966 0 1.75-.784 1.75-1.75V19h-2.25a2.25 2.25 0 01-2.25-2.25v-1.5c0-.621-.504-1.125-1.125-1.125H8.625c-.621 0-1.125.504-1.125 1.125v1.5a2.25 2.25 0 01-2.25 2.25H2.751v1.25c0 .966.784 1.75 1.75 1.75z" />
+                            </svg>
+                            Profile
+                          </Link>
                           <button
                             type="button"
                             onClick={handleLogout}
@@ -423,6 +433,15 @@ export default function Home() {
                           </Link>
                         </li>
                       )}
+                      <li>
+                        <Link
+                          href="/profile"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
+                        >
+                          Profile
+                        </Link>
+                      </li>
                       <li className="border-t border-white/10 pt-3">
                         <div className="flex items-center gap-3 px-3 py-2">
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-400/20 text-xs font-bold uppercase text-gold-400">
