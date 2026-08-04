@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gem, Truck, Headphones } from "lucide-react";
+import { Gem, Truck, Headphones, User } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -302,16 +302,18 @@ export default function Home() {
                       className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-900/70 px-3 py-1.5 text-sm transition hover:border-gold-400/20 hover:bg-gold-400/10"
                     >
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400/20 text-xs font-bold uppercase text-gold-400">
-                        {userDisplayName.charAt(0)}
+                        <User className="h-4 w-4" />
                       </span>
-                      <span className="hidden sm:inline text-zinc-200">{userDisplayName}</span>
                       <span className={`text-xs text-zinc-400 transition ${userMenuOpen ? "rotate-180" : ""}`}>▾</span>
                     </button>
 
                     {userMenuOpen && (
                       <div className="absolute right-0 top-full mt-2 w-56 rounded-[1.5rem] border border-white/10 bg-zinc-900 p-2 shadow-xl backdrop-blur-xl">
                         <div className="border-b border-white/10 pb-2 mb-2 px-3 py-2">
-                          <p className="truncate text-sm font-medium text-white">{userDisplayName}</p>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gold-400" />
+                            <p className="truncate text-sm font-medium text-white">{userDisplayName}</p>
+                          </div>
                           <p className="truncate text-xs text-zinc-500">{session?.email ?? ""}</p>
                         </div>
                         <div className="space-y-1">
@@ -412,7 +414,7 @@ export default function Home() {
                       <li className="border-t border-white/10 pt-3">
                         <div className="flex items-center gap-3 px-3 py-2">
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-400/20 text-xs font-bold uppercase text-gold-400">
-                            {userDisplayName.charAt(0)}
+                            <User className="h-4 w-4" />
                           </span>
                           <div>
                             <p className="text-sm font-medium text-white">{userDisplayName}</p>
