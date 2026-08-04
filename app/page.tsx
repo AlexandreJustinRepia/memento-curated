@@ -270,6 +270,17 @@ export default function Home() {
   const displayedProducts = filteredProducts.slice(0, visibleCount);
   const hasMore = displayedProducts.length < filteredProducts.length;
 
+  const scrollToCollections = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const el = document.getElementById("collections");
+    if (el) {
+      const headerOffset = 80;
+      const elementPosition = el.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = elementPosition - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+    }
+  };
+
   return (
     <>
       {/* ── Sticky Header ─────────────────────────────────────────────── */}
@@ -286,7 +297,8 @@ export default function Home() {
             <ul className="flex items-center gap-3 sm:gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
               <li>
                 <Link
-                  href="#collections"
+                  href="#"
+                  onClick={scrollToCollections}
                   className="hover:text-gold-400 transition-colors"
                 >
                   Collections
@@ -389,8 +401,8 @@ export default function Home() {
               <ul className="space-y-3 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
                 <li>
                   <Link
-                    href="#collections"
-                    onClick={() => setMobileMenuOpen(false)}
+                    href="#"
+                    onClick={(e) => { scrollToCollections(e); setMobileMenuOpen(false); }}
                     className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
                   >
                     Collections
@@ -559,13 +571,15 @@ export default function Home() {
                   className="flex flex-wrap gap-4 pt-2"
                 >
                   <Link
-                    href="#collections"
+                    href="#"
+                    onClick={scrollToCollections}
                     className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-gold-400 text-zinc-950 font-bold uppercase tracking-wider text-xs transition-all hover:bg-gold-400/90 active:scale-[0.98] shadow-[0_8px_20px_-4px_rgba(212,175,55,0.4)]"
                   >
                     View Gallery
                   </Link>
                   <Link
-                    href="#collections"
+                    href="#"
+                    onClick={scrollToCollections}
                     className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-white/20 bg-zinc-900/40 text-zinc-200 font-bold uppercase tracking-wider text-xs transition-all hover:border-gold-400/40 hover:text-gold-400 active:scale-[0.98]"
                   >
                     View All Products
