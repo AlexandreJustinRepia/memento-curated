@@ -95,7 +95,7 @@ function NoImage({ name }: { name: string }) {
 // ---------------------------------------------------------------------------
 // StarRating helper
 // ---------------------------------------------------------------------------
-function StarRating({ value, count }: { value: number | null; count: number }) {
+export function StarRating({ value, count }: { value: number | null; count: number }) {
   if (!value || count === 0) return null;
   return (
     <div className="flex items-center gap-1">
@@ -669,8 +669,8 @@ export default function Home() {
                   layout
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
                 >
-                  <AnimatePresence mode="popLayout">
-                    {displayedProducts.map((product) => (
+                <AnimatePresence mode="popLayout">
+                  {displayedProducts.map((product) => (
                     <motion.div
                       layout
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -680,6 +680,7 @@ export default function Home() {
                       key={product.id}
                       className="group rounded-3xl bg-zinc-900/40 border border-white/10 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-gold-400/30 transition-colors duration-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)]"
                     >
+                      <Link href={`/product/${product.id}`} className="block">
                       {/* Image */}
                       <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-950">
                         {product.image_url ? (
@@ -724,6 +725,7 @@ export default function Home() {
                           {product.stock === 0 ? "Out of stock" : "Request Details"}
                         </button>
                       </div>
+                      </Link>
                     </motion.div>
                   ))}
                 </AnimatePresence>
