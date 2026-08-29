@@ -367,6 +367,7 @@ export default function Home() {
                   </li>
                 ) : (
                   <>
+                    {/*
                     <li>
                       <Link
                         href="/login"
@@ -383,6 +384,7 @@ export default function Home() {
                         Sign Up
                       </Link>
                     </li>
+                    */}
                   </>
                 )
               )}
@@ -465,28 +467,30 @@ export default function Home() {
                         </button>
                       </li>
                     </>
-                  ) : (
-                    <>
-                      <li>
-                        <Link
-                          href="/login"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
-                        >
-                          Sign In
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          href="/signup"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
-                        >
-                          Sign Up
-                        </Link>
-                      </li>
-                    </>
-                  )
+                   ) : (
+                     <>
+                       {/*
+                       <li>
+                         <Link
+                           href="/login"
+                           onClick={() => setMobileMenuOpen(false)}
+                           className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
+                         >
+                           Sign In
+                         </Link>
+                       </li>
+                       <li>
+                         <Link
+                           href="/signup"
+                           onClick={() => setMobileMenuOpen(false)}
+                           className="block rounded-2xl px-3 py-3 transition hover:text-gold-400"
+                         >
+                           Sign Up
+                         </Link>
+                       </li>
+                       */}
+                     </>
+                   )
                 )}
               </ul>
             </nav>

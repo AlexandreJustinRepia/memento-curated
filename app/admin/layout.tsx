@@ -54,11 +54,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const path = pathname ?? "";
 
     if (path.startsWith("/admin/products")) return "products";
+    if (path.startsWith("/admin/orders")) return "orders";
     if (path.startsWith("/admin/users")) return "users";
     return "dashboard";
   }, [pathname]);
 
-  const manageOpen = isManageOpen || activeSection === "users" || activeSection === "products";
+  const manageOpen = isManageOpen || activeSection === "users" || activeSection === "products" || activeSection === "orders";
 
   const handleLinkClick = (section: string) => {
     setIsMenuOpen(false);
@@ -172,6 +173,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       >
                         Products
                       </Link>
+                      <Link
+                        href="/admin/orders"
+                        onClick={() => handleLinkClick("orders")}
+                        className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
+                          activeSection === "orders"
+                            ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
+                            : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
+                        }`}
+                      >
+                        Orders
+                      </Link>
                     </li>
                   )}
                 </ul>
@@ -217,19 +229,30 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         >
                           Users
                         </Link>
-                        <Link
-                          href="/admin/products"
-                          onClick={() => handleLinkClick("products")}
-                          className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                            activeSection === "products"
-                              ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
-                              : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
-                          }`}
-                        >
-                          Products
-                        </Link>
-                      </li>
-                    )}
+                         <Link
+                           href="/admin/products"
+                           onClick={() => handleLinkClick("products")}
+                           className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
+                             activeSection === "products"
+                               ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
+                               : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
+                           }`}
+                         >
+                           Products
+                         </Link>
+                         <Link
+                           href="/admin/orders"
+                           onClick={() => handleLinkClick("orders")}
+                           className={`block rounded-2xl border px-3 py-3 text-sm font-medium transition ${
+                             activeSection === "orders"
+                               ? "border-gold-400/30 bg-gold-400/10 text-gold-400"
+                               : "border-white/10 text-zinc-300 hover:border-gold-400/20 hover:bg-gold-400/10 hover:text-gold-400"
+                           }`}
+                         >
+                           Orders
+                         </Link>
+                       </li>
+                     )}
                   </ul>
                 </nav>
               )}

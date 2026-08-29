@@ -95,7 +95,7 @@ const recentActivity = [
 
 const quickActions = [
   { label: "Add collection", hint: "Launch a new capsule", href: "/admin/products" },
-  { label: "Review orders", hint: "Track pending requests", action: "orders" },
+  { label: "Review orders", hint: "Track pending requests", href: "/admin/orders" },
   { label: "View audience", hint: "Inspect recent visitors", href: "/admin" },
 ];
 
