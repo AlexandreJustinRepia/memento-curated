@@ -34,6 +34,8 @@ type ProductOption = {
   id: number;
   name: string;
   price: number;
+  image_url: string | null;
+  description: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -89,6 +91,96 @@ function StarRating({ value, count }: { value: number | null; count: number }) {
 }
 
 // ---------------------------------------------------------------------------
+// Product Picker Modal
+// ---------------------------------------------------------------------------
+function ProductPickerModal({
+  products,
+  onClose,
+  onSelect,
+}: {
+  products: ProductOption[];
+  onClose: () => void;
+  onSelect: (product: ProductOption) => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return products.filter((p) =>
+      p.name.toLowerCase().includes(q) || (p.description ?? "").toLowerCase().includes(q)
+    );
+  }, [products, search]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-4xl max-h-[85dvh] overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+              Select a product
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Choose from catalog</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400"
+          >
+            Close
+          </button>
+        </div>
+
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search products…"
+          className="mt-6 w-full rounded-full border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+        />
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((product) => (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => onSelect(product)}
+              className="rounded-[1.5rem] border border-white/10 bg-zinc-950/70 p-3 text-left transition hover:border-gold-400/30 hover:bg-zinc-950"
+            >
+              <div className="h-36 w-full overflow-hidden rounded-[1.25rem] bg-zinc-900/80">
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.2em] text-zinc-500">
+                    No image
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-sm font-semibold text-white">{product.name}</p>
+                <p className="text-xs text-zinc-500 line-clamp-2">
+                  {product.description ?? "No description"}
+                </p>
+                <p className="text-sm font-semibold text-gold-400">
+                  {formatCurrency(product.price)}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 && (
+          <p className="mt-6 text-center text-sm text-zinc-500">No products found.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function OrdersPage() {
@@ -107,9 +199,9 @@ export default function OrdersPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [orderStatus, setOrderStatus] = useState("pending");
-  const [selectedProductId, setSelectedProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [orderItems, setOrderItems] = useState<{ product_id: number; quantity: number; price: number; name: string }[]>([]);
+  const [orderItems, setOrderItems] = useState<{ product_id: number; quantity: number; price: number; name: string; image_url: string | null }[]>([]);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const ITEMS_PER_PAGE = 8;
 
@@ -135,14 +227,20 @@ export default function OrdersPage() {
     fetchOrders();
   }, [fetchOrders]);
 
-  // ── Fetch products for create modal ──────────────────────────────────────
+  // ── Fetch products for picker ─────────────────────────────────────────────
   useEffect(() => {
     if (!isCreateOpen) return;
     fetch("/api/products")
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
-        setProducts(list.map((p: { id: number; name: string; price: number }) => ({ id: p.id, name: p.name, price: Number(p.price) })));
+        setProducts(list.map((p: { id: number; name: string; price: number; image_url: string | null; description: string | null }) => ({
+          id: p.id,
+          name: p.name,
+          price: Number(p.price),
+          image_url: p.image_url,
+          description: p.description,
+        })));
       })
       .catch(() => setProducts([]));
   }, [isCreateOpen]);
@@ -174,21 +272,31 @@ export default function OrdersPage() {
     setSelectedOrder(order);
   };
 
-  // ── Add product to order items ───────────────────────────────────────────
-  const handleAddItem = () => {
-    if (!selectedProductId || quantity < 1) return;
-    const product = products.find((p) => String(p.id) === selectedProductId);
-    if (!product) return;
+  // ── Add product from picker ──────────────────────────────────────────────
+  const handleSelectProduct = (product: ProductOption) => {
     setOrderItems((prev) => [
       ...prev,
-      { product_id: product.id, quantity, price: product.price, name: product.name },
+      {
+        product_id: product.id,
+        quantity: 1,
+        price: product.price,
+        name: product.name,
+        image_url: product.image_url,
+      },
     ]);
-    setSelectedProductId("");
+    setIsPickerOpen(false);
     setQuantity(1);
   };
 
   const handleRemoveItem = (index: number) => {
     setOrderItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateQuantity = (index: number, qty: number) => {
+    if (qty < 1) return;
+    setOrderItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, quantity: qty } : item))
+    );
   };
 
   const orderTotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -223,7 +331,6 @@ export default function OrdersPage() {
       setCustomerEmail("");
       setOrderStatus("pending");
       setOrderItems([]);
-      setSelectedProductId("");
       setQuantity(1);
       fetchOrders();
     } catch (e) {
@@ -440,53 +547,60 @@ export default function OrdersPage() {
 
               <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
                 <p className="text-sm font-semibold text-white mb-3">Add products</p>
-                <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-                  <select
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
-                  >
-                    <option value="">Select a product</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} — {formatCurrency(p.price)}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
-                    placeholder="Qty"
-                    className="w-24 rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="rounded-full border border-white/10 bg-zinc-950/80 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-gold-400/20 hover:text-gold-400"
-                  >
-                    Add
-                  </button>
-                </div>
 
                 {orderItems.length > 0 && (
-                  <div className="mt-4 space-y-2">
+                  <div className="mb-4 space-y-2">
                     {orderItems.map((item, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-900/60 px-3 py-2 text-sm"
+                        className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 p-2"
                       >
-                        <div className="flex-1">
-                          <p className="text-zinc-200">{item.name}</p>
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-900/80">
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-widest text-zinc-500">
+                              No img
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm text-zinc-200">{item.name}</p>
                           <p className="text-xs text-zinc-500">
-                            {item.quantity} × {formatCurrency(item.price)}
+                            {formatCurrency(item.price)} each
                           </p>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQuantity(index, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-xs text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            -
+                          </button>
+                          <span className="w-6 text-center text-sm font-semibold text-white">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQuantity(index, item.quantity + 1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-xs text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <p className="w-20 text-right text-sm font-semibold text-gold-400">
+                          {formatCurrency(item.price * item.quantity)}
+                        </p>
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(index)}
-                          className="ml-3 text-xs text-red-400 transition hover:text-red-300"
+                          className="ml-1 text-xs text-red-400 transition hover:text-red-300"
                         >
                           Remove
                         </button>
@@ -497,6 +611,14 @@ export default function OrdersPage() {
                     </p>
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsPickerOpen(true)}
+                  className="w-full rounded-2xl border border-dashed border-white/10 bg-zinc-950/80 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:border-gold-400/30 hover:text-gold-400"
+                >
+                  + Select product from catalog
+                </button>
               </div>
 
               <button
@@ -509,6 +631,15 @@ export default function OrdersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── Product picker modal ─────────────────────────────────────────── */}
+      {isPickerOpen && (
+        <ProductPickerModal
+          products={products}
+          onClose={() => setIsPickerOpen(false)}
+          onSelect={handleSelectProduct}
+        />
       )}
 
       {/* ── Order detail modal ───────────────────────────────────────────── */}
