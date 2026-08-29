@@ -367,7 +367,6 @@ export default function Home() {
                   </li>
                 ) : (
                   <>
-                    {/*
                     <li>
                       <Link
                         href="/login"
@@ -376,6 +375,7 @@ export default function Home() {
                         Sign In
                       </Link>
                     </li>
+                    {/*
                     <li>
                       <Link
                         href="/signup"
@@ -469,7 +469,6 @@ export default function Home() {
                     </>
                    ) : (
                      <>
-                       {/*
                        <li>
                          <Link
                            href="/login"
@@ -479,6 +478,7 @@ export default function Home() {
                            Sign In
                          </Link>
                        </li>
+                       {/*
                        <li>
                          <Link
                            href="/signup"
