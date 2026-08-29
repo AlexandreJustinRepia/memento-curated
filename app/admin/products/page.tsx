@@ -127,46 +127,7 @@ export default function ProductsPage() {
       const res = await fetch("/api/admin/products");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const products = await res.json() as Product[];
-      const productIds = products.map((p) => p.id);
-
-      const ratingsMap: Record<number, { avg_rating: number | null; rating_count: number }> = {};
-
-      if (productIds.length > 0) {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabaseClient = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SECRET_KEY!
-        );
-        const { data: ratingsData } = await supabaseClient
-          .from("ratings")
-          .select("product_id, rating")
-          .in("product_id", productIds);
-
-        if (ratingsData) {
-          const grouped: Record<number, { sum: number; count: number }> = {};
-          for (const r of ratingsData) {
-            if (!grouped[r.product_id]) {
-              grouped[r.product_id] = { sum: 0, count: 0 };
-            }
-            grouped[r.product_id].sum += r.rating;
-            grouped[r.product_id].count += 1;
-          }
-          for (const [pid, stats] of Object.entries(grouped)) {
-            ratingsMap[Number(pid)] = {
-              avg_rating: Number((stats.sum / stats.count).toFixed(1)),
-              rating_count: stats.count,
-            };
-          }
-        }
-      }
-
-      const enriched = products.map((p) => ({
-        ...p,
-        avg_rating: ratingsMap[p.id]?.avg_rating ?? null,
-        rating_count: ratingsMap[p.id]?.rating_count ?? 0,
-      }));
-
-      setProducts(enriched);
+      setProducts(products);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load products");
     } finally {
