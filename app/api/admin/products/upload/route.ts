@@ -8,11 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY!
 );
 
-// Route-segment config — raise body limit so large images can reach Sharp.
-export const config = {
-  api: { bodyParser: { sizeLimit: "50mb" } },
-};
-
 const BUCKET = "product-images";
 // Accept any image — Sharp will resize & compress before uploading.
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/heic", "image/bmp", "image/tiff"];

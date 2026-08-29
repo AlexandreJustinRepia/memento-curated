@@ -201,6 +201,7 @@ export default function OrdersPage() {
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
 
   // Create order state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -283,6 +284,7 @@ export default function OrdersPage() {
     setSelectedOrder(order);
     setEditingStatus(false);
     setStatusDraft(order.status);
+    setEmailMessage("");
   };
 
   const handleStatusUpdate = async () => {
@@ -312,6 +314,8 @@ export default function OrdersPage() {
     try {
       const res = await fetch(`/api/admin/orders/${selectedOrder.id}/send-email`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: emailMessage }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to send email");
       setToast("Order confirmation email sent.");
@@ -774,6 +778,18 @@ export default function OrdersPage() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  Custom message <span className="text-zinc-500">(optional)</span>
+                </label>
+                <textarea
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Add a personal note to the customer…"
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                />
+              </div>
               <button
                 type="button"
                 onClick={handleSendEmail}

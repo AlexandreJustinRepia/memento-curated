@@ -103,6 +103,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const orderId = Number(id);
+  const body = await req.json().catch(() => ({}));
+  const customMessage = body?.message?.trim();
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -157,6 +159,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     `;
   }).join("");
 
+  const customMessageBlock = customMessage
+    ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #facc15;">
+        <p style="color: #facc15; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Personal note from the team</p>
+        <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${customMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+       </div>`
+    : "";
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #fff; background-color: #18181b;">
       <h1 style="color: #facc15; font-size: 24px; margin-bottom: 8px;">Memento Curated</h1>
@@ -169,6 +178,8 @@ export async function POST(req: NextRequest, { params }: Params) {
         <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Date:</strong> ${new Date(order.created_at).toLocaleString("en-PH")}</p>
         <p style="color: #d4d4d8;"><strong>Status:</strong> <span style="color: #4ade80; text-transform: capitalize;">${order.status}</span></p>
       </div>
+
+      ${customMessageBlock}
 
       <h2 style="color: #facc15; font-size: 18px; margin-bottom: 12px;">Order Items</h2>
       <table style="width: 100%; border-collapse: collapse; background-color: #27272a; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
@@ -201,6 +212,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     </div>
   `;
 
+  const customMessageText = customMessage ? `\nPersonal note from the team:\n${customMessage}\n` : "";
+
   const text = `
 Memento Curated - Order Confirmation
 
@@ -209,7 +222,7 @@ Customer: ${order.user_name}
 Email: ${order.user_email}
 Date: ${new Date(order.created_at).toLocaleString("en-PH")}
 Status: ${order.status}
-
+${customMessageText}
 Order Items:
 ${items.map((item) => {
   const productName = productNameMap[item.product_id] ?? "Unknown Product";
