@@ -6,6 +6,32 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY!
 );
 
+const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function generateOrderCode(): string {
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += CHARS[Math.floor(Math.random() * CHARS.length)];
+  }
+  return code;
+}
+
+async function uniqueOrderCode(): Promise<string> {
+  let code = generateOrderCode();
+  let attempts = 0;
+  while (attempts < 10) {
+    const { data } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("custom_order_id", code)
+      .maybeSingle();
+    if (!data) return code;
+    code = generateOrderCode();
+    attempts++;
+  }
+  return code;
+}
+
 // GET /api/admin/orders — list all orders with product details and ratings
 export async function GET() {
   const { data: orders, error: ordersError } = await supabase
@@ -83,6 +109,7 @@ export async function GET() {
 
   const enriched = ordersList.map((order: {
     id: number;
+    custom_order_id: string;
     user_id: string;
     user_name: string;
     user_email: string;
@@ -162,9 +189,12 @@ export async function POST(req: NextRequest) {
     return sum + Number(item.price) * Number(item.quantity);
   }, 0);
 
+  const customOrderId = await uniqueOrderCode();
+
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
+      custom_order_id: customOrderId,
       user_id: body.user_id ?? "guest",
       user_name: body.user_name ?? "Guest",
       user_email: body.user_email,
@@ -217,4 +247,31 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(order, { status: 201 });
+}
+
+// DELETE /api/admin/orders — bulk delete orders
+export async function DELETE(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const ids = body?.ids;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return NextResponse.json({ error: "ids array is required" }, { status: 400 });
+  }
+
+  const numericIds = ids.map((id) => Number(id)).filter((id) => !Number.isNaN(id));
+
+  if (numericIds.length === 0) {
+    return NextResponse.json({ error: "No valid order IDs provided" }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .delete()
+    .in("id", numericIds);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, deleted: numericIds.length });
 }

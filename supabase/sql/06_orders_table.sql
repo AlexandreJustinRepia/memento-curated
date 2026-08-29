@@ -7,13 +7,14 @@
 -- 1. TABLES: orders + order_items
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.orders (
-  id          bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id     text        NOT NULL,
-  user_name   text        NOT NULL,
-  user_email  text        NOT NULL,
-  status      text        NOT NULL DEFAULT 'pending',
-  total       numeric(10,2) NOT NULL DEFAULT 0,
-  created_at  timestamptz NOT NULL DEFAULT now()
+  id               bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  custom_order_id  text        UNIQUE,
+  user_id          text        NOT NULL,
+  user_name        text        NOT NULL,
+  user_email       text        NOT NULL,
+  status           text        NOT NULL DEFAULT 'pending',
+  total            numeric(10,2) NOT NULL DEFAULT 0,
+  created_at       timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.order_items (
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_custom_id ON public.orders (custom_order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items (order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON public.order_items (product_id);
 

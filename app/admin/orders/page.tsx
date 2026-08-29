@@ -22,6 +22,7 @@ type OrderItem = {
 
 type Order = {
   id: number;
+  custom_order_id: string;
   user_id: string;
   user_name: string;
   user_email: string;
@@ -211,6 +212,8 @@ export default function OrdersPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [requestingRatings, setRequestingRatings] = useState(false);
   const [emailMessage, setEmailMessage] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   // Create order state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -222,6 +225,7 @@ export default function OrdersPage() {
   const [quantity, setQuantity] = useState(1);
   const [orderItems, setOrderItems] = useState<{ product_id: number; quantity: number; price: number; name: string; image_url: string | null; stock: number }[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const ITEMS_PER_PAGE = 8;
 
@@ -288,12 +292,66 @@ export default function OrdersPage() {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  // Hide suggestions when create modal closes
+  useEffect(() => {
+    if (!isCreateOpen) {
+      setShowSuggestions(false);
+    }
+  }, [isCreateOpen]);
+
+  // ── Customer suggestions from existing orders ─────────────────────────────
+  const uniqueCustomers = useMemo(() => {
+    const seen = new Map<string, { name: string; email: string }>();
+    for (const order of orders) {
+      const key = order.user_email.toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, { name: order.user_name, email: order.user_email });
+      }
+    }
+    return Array.from(seen.values());
+  }, [orders]);
+
+  const filteredSuggestions = useMemo(() => {
+    const q = customerName.trim().toLowerCase();
+    if (q.length === 0) return [];
+    return uniqueCustomers.filter((c) =>
+      c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
+    );
+  }, [uniqueCustomers, customerName]);
+
+  const selectSuggestion = (name: string, email: string) => {
+    setCustomerName(name);
+    setCustomerEmail(email);
+    setShowSuggestions(false);
+  };
+
   // ── Open order detail ────────────────────────────────────────────────────
   const openOrder = (order: Order) => {
     setSelectedOrder(order);
     setEditingStatus(false);
     setStatusDraft(order.status);
     setEmailMessage("");
+    setConfirmDeleteId(null);
+  };
+
+  const handleDeleteOrder = async (orderId: number) => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to delete order");
+      setToast("Order deleted.");
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(null);
+      }
+      setConfirmDeleteId(null);
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Failed to delete order");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleStatusUpdate = async () => {
@@ -510,52 +568,92 @@ export default function OrdersPage() {
           ) : visible.length === 0 ? (
             <p className="text-center py-12 text-sm text-zinc-500">No orders found.</p>
           ) : (
-            visible.map((order) => (
-              <button
-                key={order.id}
-                type="button"
-                onClick={() => openOrder(order)}
-                className="grid w-full gap-4 rounded-[1.5rem] border border-white/10 bg-zinc-950/70 p-4 text-left transition hover:border-gold-400/30 hover:bg-zinc-950 sm:grid-cols-[1fr_auto] sm:items-center"
-              >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-white">
-                      #{order.id} — {order.user_name}
-                    </p>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${statusTone(order.status)}`}
+            visible.map((order) => {
+              const isConfirming = confirmDeleteId === order.id;
+              return (
+                <div
+                  key={order.id}
+                  className="rounded-[1.5rem] border border-white/10 bg-zinc-950/70 p-4 transition hover:border-gold-400/30 hover:bg-zinc-950"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <button
+                      type="button"
+                      onClick={() => openOrder(order)}
+                      className="flex-1 text-left"
                     >
-                      {order.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500">{order.user_email}</p>
-                  <p className="text-xs text-zinc-500">{formatDate(order.created_at)}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {order.items.slice(0, 3).map((item) => (
-                      <span
-                        key={item.id}
-                        className="rounded-full border border-white/10 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium text-zinc-300"
-                      >
-                        {item.product_name} ×{item.quantity}
-                      </span>
-                    ))}
-                    {order.items.length > 3 && (
-                      <span className="rounded-full border border-white/10 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
-                        +{order.items.length - 3} more
-                      </span>
-                    )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-white">
+                          {order.custom_order_id} — {order.user_name}
+                        </p>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${statusTone(order.status)}`}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-zinc-500">{order.user_email}</p>
+                      <p className="mt-1 text-xs text-zinc-500">{formatDate(order.created_at)}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {order.items.slice(0, 3).map((item) => (
+                          <span
+                            key={item.id}
+                            className="rounded-full border border-white/10 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium text-zinc-300"
+                          >
+                            {item.product_name} ×{item.quantity}
+                          </span>
+                        ))}
+                        {order.items.length > 3 && (
+                          <span className="rounded-full border border-white/10 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+                            +{order.items.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gold-400">
+                          {formatCurrency(order.total)}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {order.items.reduce((s, i) => s + i.quantity, 0)} items
+                        </p>
+                      </div>
+                      {isConfirming ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOrder(order.id)}
+                            disabled={deleting}
+                            className="rounded-full bg-red-500 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deleting ? "…" : "Confirm"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(order.id);
+                          }}
+                          className="rounded-full border border-red-500/20 p-1.5 text-red-400 transition hover:border-red-500/40 hover:text-red-300"
+                          title="Delete order"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gold-400">
-                    {formatCurrency(order.total)}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {order.items.reduce((s, i) => s + i.quantity, 0)} items
-                  </p>
-                </div>
-              </button>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -612,15 +710,36 @@ export default function OrdersPage() {
 
             <form onSubmit={handleCreateOrder} className="mt-6 grid gap-5">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-zinc-300">Customer name</label>
                   <input
                     required
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                     placeholder="Jane Doe"
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
                   />
+                  {showSuggestions && filteredSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-900 shadow-xl">
+                      {filteredSuggestions.map((suggestion, index) => (
+                        <button
+                          key={`${suggestion.email}-${index}`}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => selectSuggestion(suggestion.name, suggestion.email)}
+                          className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-gold-400/10 first:rounded-t-2xl last:rounded-b-2xl"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate text-sm font-medium text-white">{suggestion.name}</p>
+                            <p className="truncate text-xs text-zinc-500">{suggestion.email}</p>
+                          </div>
+                          <span className="ml-2 text-[10px] text-zinc-500 uppercase tracking-wider">Previous order</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-300">Customer email</label>
@@ -763,9 +882,9 @@ export default function OrdersPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
                   Order detail
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">
-                  #{selectedOrder.id} — {selectedOrder.user_name}
-                </h2>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">
+                    {selectedOrder.custom_order_id} — {selectedOrder.user_name}
+                  </h2>
                 <p className="mt-1 text-sm text-zinc-400">{selectedOrder.user_email}</p>
               </div>
               <button
@@ -874,6 +993,18 @@ export default function OrdersPage() {
                   {requestingRatings ? "Sending…" : "Request Ratings"}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Delete order #${selectedOrder.id} - ${selectedOrder.custom_order_id}? This cannot be undone.`)) {
+                    handleDeleteOrder(selectedOrder.id);
+                  }
+                }}
+                disabled={deleting}
+                className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-4 py-2 text-sm font-semibold text-red-400 transition hover:border-red-500/40 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? "Deleting…" : "Delete Order"}
+              </button>
             </div>
 
             <div className="mt-6 space-y-3">

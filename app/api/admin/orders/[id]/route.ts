@@ -99,7 +99,32 @@ export async function PUT(req: NextRequest, { params }: Params) {
   return NextResponse.json({ success: true, status: newStatus });
 }
 
-// POST /api/admin/orders/[id]/send-email — send order confirmation or rating request email
+// DELETE /api/admin/orders/[id] — delete an order
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const orderId = Number(id);
+
+  const { data: order, error: fetchError } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("id", orderId)
+    .single();
+
+  if (fetchError || !order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  const { error: deleteError } = await supabase
+    .from("orders")
+    .delete()
+    .eq("id", orderId);
+
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const orderId = Number(id);
