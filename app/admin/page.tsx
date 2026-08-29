@@ -17,6 +17,20 @@ type VisitStats = {
   page_filter: string;
 };
 
+type DashboardStats = {
+  totalOrders: number;
+  totalSales: number;
+  completedCount: number;
+  pendingCount: number;
+  cancelledCount: number;
+  lowStockProducts: {
+    id: number;
+    name: string;
+    stock: number;
+    price: number;
+  }[];
+};
+
 // ---------------------------------------------------------------------------
 // Skeleton shimmer component
 // ---------------------------------------------------------------------------
@@ -79,20 +93,8 @@ function VisitBarChart({ daily }: { daily: DailyBucket[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Static mock stats (orders, customers, conversion)
+// Quick actions
 // ---------------------------------------------------------------------------
-const STATIC_STATS = [
-  { label: "Orders", value: "86", change: "+8.1%", tone: "text-gold-400" },
-  { label: "Customers", value: "324", change: "+5.2%", tone: "text-sky-400" },
-  { label: "Conversion", value: "4.8%", change: "+0.6%", tone: "text-violet-400" },
-];
-
-const recentActivity = [
-  { title: "New signup", detail: "A new customer joined from mobile", time: "2 min ago" },
-  { title: "Inventory update", detail: "Bracelet collection refreshed", time: "18 min ago" },
-  { title: "Peak traffic", detail: "Visits increased after launch", time: "1 hr ago" },
-];
-
 const quickActions = [
   { label: "Add collection", hint: "Launch a new capsule", href: "/admin/products" },
   { label: "Review orders", hint: "Track pending requests", href: "/admin/orders" },
@@ -104,17 +106,29 @@ const quickActions = [
 // ---------------------------------------------------------------------------
 export default function AdminPage() {
   const [visits, setVisits] = useState<VisitStats | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
+      setError(null);
       try {
-        const res = await fetch("/api/admin/visits");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: VisitStats = await res.json();
-        setVisits(data);
+        const [visitsRes, statsRes] = await Promise.all([
+          fetch("/api/admin/visits"),
+          fetch("/api/admin/dashboard"),
+        ]);
+
+        if (!visitsRes.ok) throw new Error(`Visits HTTP ${visitsRes.status}`);
+        if (!statsRes.ok) throw new Error(`Stats HTTP ${statsRes.status}`);
+
+        const visitsData: VisitStats = await visitsRes.json();
+        const statsData: DashboardStats = await statsRes.json();
+
+        setVisits(visitsData);
+        setStats(statsData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -124,7 +138,7 @@ export default function AdminPage() {
     load();
   }, []);
 
-  // Derived change label for visit card (today vs yesterday not tracked yet — show this_week)
+  // Derived change label for visit card
   const visitChange =
     visits && visits.this_week > 0
       ? `${visits.this_week.toLocaleString()} this week`
@@ -193,23 +207,86 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Static stats */}
-        {STATIC_STATS.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-[1.5rem] border border-white/10 bg-zinc-900/70 p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-          >
-            <p className="text-sm text-zinc-400">{stat.label}</p>
+        {/* Orders */}
+        <div className="rounded-[1.5rem] border border-white/10 bg-zinc-900/70 p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <p className="text-sm text-zinc-400">Total Orders</p>
+          {loading ? (
+            <>
+              <Shimmer className="mt-3 h-8 w-24" />
+              <Shimmer className="mt-2 h-4 w-16" />
+            </>
+          ) : (
             <div className="mt-3 flex items-end justify-between">
               <p className="text-2xl font-semibold tracking-tight text-white">
-                {stat.value}
+                {(stats?.totalOrders ?? 0).toLocaleString()}
               </p>
-              <span className={`text-sm font-medium ${stat.tone}`}>
-                {stat.change}
+              <span className="text-sm font-medium text-gold-400">
+                {stats?.pendingCount != null && stats?.pendingCount > 0
+                  ? `${stats.pendingCount} pending`
+                  : "No pending"}
               </span>
             </div>
-          </div>
-        ))}
+          )}
+          {!loading && stats && (
+            <p className="mt-1 text-xs text-zinc-500">
+              {stats.completedCount} completed · {stats.cancelledCount} cancelled
+            </p>
+          )}
+        </div>
+
+        {/* Sales */}
+        <div className="rounded-[1.5rem] border border-white/10 bg-zinc-900/70 p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <p className="text-sm text-zinc-400">Total Sales</p>
+          {loading ? (
+            <>
+              <Shimmer className="mt-3 h-8 w-24" />
+              <Shimmer className="mt-2 h-4 w-16" />
+            </>
+          ) : (
+            <div className="mt-3 flex items-end justify-between">
+              <p className="text-2xl font-semibold tracking-tight text-white">
+                ₱{(stats?.totalSales ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <span className="text-sm font-medium text-emerald-400">
+                {stats?.completedCount != null && stats?.completedCount > 0
+                  ? `${stats.completedCount} orders`
+                  : "No sales"}
+              </span>
+            </div>
+          )}
+          {!loading && stats && stats.totalSales > 0 && (
+            <p className="mt-1 text-xs text-zinc-500">
+              Avg ₱{stats.completedCount > 0 ? (stats.totalSales / stats.completedCount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} per order
+            </p>
+          )}
+        </div>
+
+        {/* Low stock alert */}
+        <div className="rounded-[1.5rem] border border-white/10 bg-zinc-900/70 p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <p className="text-sm text-zinc-400">Low Stock Alerts</p>
+          {loading ? (
+            <>
+              <Shimmer className="mt-3 h-8 w-24" />
+              <Shimmer className="mt-2 h-4 w-16" />
+            </>
+          ) : (
+            <div className="mt-3 flex items-end justify-between">
+              <p className="text-2xl font-semibold tracking-tight text-white">
+                {(stats?.lowStockProducts?.length ?? 0).toLocaleString()}
+              </p>
+              <span className="text-sm font-medium text-red-400">
+                {stats?.lowStockProducts && stats.lowStockProducts.length > 0
+                  ? "Needs attention"
+                  : "All stocked"}
+              </span>
+            </div>
+          )}
+          {!loading && stats && stats.lowStockProducts.length > 0 && (
+            <p className="mt-1 text-xs text-zinc-500">
+              {stats.lowStockProducts.length} product{stats.lowStockProducts.length !== 1 ? "s" : ""} below 5 units
+            </p>
+          )}
+        </div>
       </section>
 
       {/* ── Charts + Side Panel ─────────────────────────────────────────── */}
@@ -319,25 +396,38 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Recent activity */}
+          {/* Low stock alerts */}
           <div className="rounded-[1.75rem] border border-white/10 bg-zinc-900/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-6">
-            <p className="text-sm font-semibold text-white">Recent activity</p>
-            <div className="mt-4 space-y-3">
-              {recentActivity.map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl border border-white/10 bg-zinc-950/70 p-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-white">
-                      {item.title}
-                    </p>
-                    <span className="text-xs text-zinc-500">{item.time}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-zinc-400">{item.detail}</p>
-                </div>
-              ))}
-            </div>
+            <p className="text-sm font-semibold text-white">Low stock alerts</p>
+            {loading ? (
+              <div className="mt-4 space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 w-full animate-pulse rounded-2xl bg-zinc-800" />
+                ))}
+              </div>
+            ) : !stats || stats.lowStockProducts.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">All products are well stocked.</p>
+            ) : (
+              <div className="mt-4 space-y-2">
+                {stats.lowStockProducts.map((product) => (
+                  <Link
+                    key={product.id}
+                    href={`/admin/products`}
+                    className="flex items-center justify-between rounded-2xl border border-red-500/20 bg-red-500/5 px-3 py-2.5 transition hover:border-red-500/30 hover:bg-red-500/10"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-medium text-white">{product.name}</p>
+                      <p className="text-xs text-zinc-500">
+                        ₱{product.price.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} each
+                      </p>
+                    </div>
+                    <span className="ml-3 shrink-0 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-400">
+                      {product.stock} left
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
