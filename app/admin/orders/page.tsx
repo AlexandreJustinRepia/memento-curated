@@ -209,6 +209,7 @@ export default function OrdersPage() {
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [requestingRatings, setRequestingRatings] = useState(false);
   const [emailMessage, setEmailMessage] = useState("");
 
   // Create order state
@@ -320,7 +321,7 @@ export default function OrdersPage() {
     if (!selectedOrder) return;
     setSendingEmail(true);
     try {
-      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/send-email`, {
+      const res = await fetch(`/api/admin/orders/${selectedOrder.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: emailMessage }),
@@ -331,6 +332,24 @@ export default function OrdersPage() {
       setToast(e instanceof Error ? e.message : "Failed to send email");
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const handleRequestRatings = async () => {
+    if (!selectedOrder) return;
+    setRequestingRatings(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${selectedOrder.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestRatings: true, message: emailMessage }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to send rating request");
+      setToast("Rating request email sent to customer.");
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Failed to send rating request");
+    } finally {
+      setRequestingRatings(false);
     }
   };
 
@@ -845,6 +864,16 @@ export default function OrdersPage() {
               >
                 {sendingEmail ? "Sending…" : "Send Confirmation Email"}
               </button>
+              {selectedOrder.status === "completed" && (
+                <button
+                  type="button"
+                  onClick={handleRequestRatings}
+                  disabled={requestingRatings}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-400 transition hover:border-emerald-400/40 hover:text-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {requestingRatings ? "Sending…" : "Request Ratings"}
+                </button>
+              )}
             </div>
 
             <div className="mt-6 space-y-3">

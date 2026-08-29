@@ -99,12 +99,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
   return NextResponse.json({ success: true, status: newStatus });
 }
 
-// POST /api/admin/orders/[id]/send-email — send order confirmation email
+// POST /api/admin/orders/[id]/send-email — send order confirmation or rating request email
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const orderId = Number(id);
   const body = await req.json().catch(() => ({}));
   const customMessage = body?.message?.trim();
+  const requestRatings = body?.requestRatings === true;
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -136,6 +137,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
   }
 
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const productLinks = items.map((item) => {
+    const productName = productNameMap[item.product_id] ?? "Unknown Product";
+    const url = `${baseUrl}/product/${item.product_id}`;
+    return `- ${productName} x${item.quantity}: ${url}`;
+  }).join("\n");
+
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT) || 587,
@@ -166,10 +174,25 @@ export async function POST(req: NextRequest, { params }: Params) {
        </div>`
     : "";
 
+  const ratingBlock = requestRatings
+    ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #facc15;">
+        <p style="color: #facc15; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">We'd love your feedback</p>
+        <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6; margin-bottom: 12px;">Thank you for your purchase! Please take a moment to rate the products you received.</p>
+        <div style="background-color: #18181b; border-radius: 12px; padding: 16px;">
+          ${items.map((item) => {
+            const productName = productNameMap[item.product_id] ?? "Unknown Product";
+            const url = `${baseUrl}/product/${item.product_id}`;
+            return `<a href="${url}" style="display: block; padding: 8px 0; color: #facc15; text-decoration: none; font-size: 14px;">★ Rate ${productName}</a>`;
+          }).join("")}
+        </div>
+        <p style="color: #a1a1aa; font-size: 12px; margin-top: 12px;">Sign in to your account to leave a review.</p>
+       </div>`
+    : "";
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #fff; background-color: #18181b;">
       <h1 style="color: #facc15; font-size: 24px; margin-bottom: 8px;">Memento Curated</h1>
-      <p style="color: #a1a1aa; margin-bottom: 24px;">Order Confirmation</p>
+      <p style="color: #a1a1aa; margin-bottom: 24px;">${requestRatings ? "Rate Your Purchase" : "Order Confirmation"}</p>
 
       <div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
         <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Order #:</strong> #${order.id}</p>
@@ -180,6 +203,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       </div>
 
       ${customMessageBlock}
+      ${ratingBlock}
 
       <h2 style="color: #facc15; font-size: 18px; margin-bottom: 12px;">Order Items</h2>
       <table style="width: 100%; border-collapse: collapse; background-color: #27272a; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
@@ -203,7 +227,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       </table>
 
       <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6;">
-        Thank you for your order! We'll notify you when your items are shipped.
+        ${requestRatings ? "We appreciate your business! Your feedback helps us improve." : "Thank you for your order! We'll notify you when your items are shipped."}
       </p>
 
       <p style="color: #71717a; font-size: 12px; margin-top: 32px;">
@@ -215,7 +239,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const customMessageText = customMessage ? `\nPersonal note from the team:\n${customMessage}\n` : "";
 
   const text = `
-Memento Curated - Order Confirmation
+${requestRatings ? "Rate Your Purchase — Memento Curated" : "Memento Curated - Order Confirmation"}
 
 Order #: #${order.id}
 Customer: ${order.user_name}
@@ -223,6 +247,7 @@ Email: ${order.user_email}
 Date: ${new Date(order.created_at).toLocaleString("en-PH")}
 Status: ${order.status}
 ${customMessageText}
+${requestRatings ? "\nWe'd love your feedback! Rate the products you purchased:\n" + productLinks + "\n" : ""}
 Order Items:
 ${items.map((item) => {
   const productName = productNameMap[item.product_id] ?? "Unknown Product";
@@ -232,19 +257,21 @@ ${items.map((item) => {
 
 Total: ₱${Number(order.total).toFixed(2)}
 
-Thank you for your order!
+${requestRatings ? "We appreciate your business!" : "Thank you for your order!"}
   `.trim();
 
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || `"Memento Curated" <${process.env.SMTP_USER}>`,
       to: order.user_email,
-      subject: `Order Confirmation #${order.id} — Memento Curated`,
+      subject: requestRatings
+        ? `How was your order? Rate your purchase #${order.id} — Memento Curated`
+        : `Order Confirmation #${order.id} — Memento Curated`,
       text,
       html,
     });
 
-    return NextResponse.json({ success: true, message: "Email sent successfully" });
+    return NextResponse.json({ success: true, message: requestRatings ? "Rating request email sent" : "Email sent successfully" });
   } catch (error) {
     console.error("Email send error:", error);
     return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
