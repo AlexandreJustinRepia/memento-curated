@@ -17,6 +17,7 @@ type OrderItem = {
   avg_rating: number | null;
   rating_count: number;
   total_sales: number;
+  current_stock: number;
 };
 
 type Order = {
@@ -36,6 +37,7 @@ type ProductOption = {
   price: number;
   image_url: string | null;
   description: string | null;
+  stock: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -164,9 +166,14 @@ function ProductPickerModal({
                 <p className="text-xs text-zinc-500 line-clamp-2">
                   {product.description ?? "No description"}
                 </p>
-                <p className="text-sm font-semibold text-gold-400">
-                  {formatCurrency(product.price)}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gold-400">
+                    {formatCurrency(product.price)}
+                  </p>
+                  <span className={`text-xs font-medium ${product.stock > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                  </span>
+                </div>
               </div>
             </button>
           ))}
@@ -191,6 +198,9 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [statusDraft, setStatusDraft] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Create order state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -234,12 +244,13 @@ export default function OrdersPage() {
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
-        setProducts(list.map((p: { id: number; name: string; price: number; image_url: string | null; description: string | null }) => ({
+        setProducts(list.map((p: { id: number; name: string; price: number; image_url: string | null; description: string | null; stock: number }) => ({
           id: p.id,
           name: p.name,
           price: Number(p.price),
           image_url: p.image_url,
           description: p.description,
+          stock: Number(p.stock),
         })));
       })
       .catch(() => setProducts([]));
@@ -270,6 +281,45 @@ export default function OrdersPage() {
   // ── Open order detail ────────────────────────────────────────────────────
   const openOrder = (order: Order) => {
     setSelectedOrder(order);
+    setEditingStatus(false);
+    setStatusDraft(order.status);
+  };
+
+  const handleStatusUpdate = async () => {
+    if (!selectedOrder || statusDraft === selectedOrder.status) {
+      setEditingStatus(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/orders/${selectedOrder.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: statusDraft }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to update status");
+      setToast("Order status updated.");
+      setSelectedOrder((prev) => (prev ? { ...prev, status: statusDraft } : null));
+      setEditingStatus(false);
+      fetchOrders();
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Failed to update status");
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!selectedOrder) return;
+    setSendingEmail(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/send-email`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to send email");
+      setToast("Order confirmation email sent.");
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Failed to send email");
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   // ── Add product from picker ──────────────────────────────────────────────
@@ -668,9 +718,46 @@ export default function OrdersPage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-center">
                 <p className="text-xs text-zinc-500">Status</p>
-                <p className={`mt-1 text-sm font-semibold ${statusTone(selectedOrder.status)}`}>
-                  {selectedOrder.status}
-                </p>
+                {editingStatus ? (
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <select
+                      value={statusDraft}
+                      onChange={(e) => setStatusDraft(e.target.value)}
+                      className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-1.5 text-sm text-white outline-none focus:border-gold-400"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleStatusUpdate}
+                      className="rounded-full bg-gold-400 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-gold-400/90"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingStatus(false); setStatusDraft(selectedOrder?.status ?? ""); }}
+                      className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex items-center justify-center gap-2">
+                    <p className={`text-sm font-semibold ${statusTone(selectedOrder.status)}`}>
+                      {selectedOrder.status}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setEditingStatus(true)}
+                      className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-center">
                 <p className="text-xs text-zinc-500">Total</p>
@@ -686,29 +773,47 @@ export default function OrdersPage() {
               </div>
             </div>
 
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleSendEmail}
+                disabled={sendingEmail}
+                className="inline-flex items-center gap-2 rounded-full border border-gold-400/20 bg-gold-400/10 px-4 py-2 text-sm font-semibold text-gold-400 transition hover:border-gold-400/40 hover:text-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {sendingEmail ? "Sending…" : "Send Confirmation Email"}
+              </button>
+            </div>
+
             <div className="mt-6 space-y-3">
               <p className="text-sm font-semibold text-white">Order items</p>
-              {selectedOrder.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4"
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">{item.product_name}</p>
-                      <p className="text-xs text-zinc-500">
-                        Qty: {item.quantity} · Unit price: {formatCurrency(item.price)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StarRating value={item.avg_rating} count={item.rating_count} />
-                      <span className="rounded-full border border-gold-400/20 bg-gold-400/10 px-2 py-0.5 text-[10px] font-semibold text-gold-400">
-                        {item.total_sales} sold
-                      </span>
+              {selectedOrder.items.map((item) => {
+                const isOutOfStock = item.current_stock <= 0;
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white">{item.product_name}</p>
+                        <p className="text-xs text-zinc-500">
+                          Qty: {item.quantity} · Unit price: {formatCurrency(item.price)}
+                        </p>
+                        <p className={`text-xs ${isOutOfStock ? "text-red-400" : "text-zinc-500"}`}>
+                          Stock left: {item.current_stock}
+                          {isOutOfStock && " — Out of stock"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <StarRating value={item.avg_rating} count={item.rating_count} />
+                        <span className="rounded-full border border-gold-400/20 bg-gold-400/10 px-2 py-0.5 text-[10px] font-semibold text-gold-400">
+                          {item.total_sales} sold
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

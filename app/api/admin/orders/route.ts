@@ -64,13 +64,15 @@ export async function GET() {
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name")
+    .select("id, name, stock")
     .in("id", productIds);
 
   const productNameMap: Record<number, string> = {};
+  const productStockMap: Record<number, number> = {};
   if (products) {
     for (const p of products) {
       productNameMap[p.id] = p.name;
+      productStockMap[p.id] = Number(p.stock);
     }
   }
 
@@ -104,6 +106,7 @@ export async function GET() {
       avg_rating: ratingsMap[item.product_id]?.avg_rating ?? null,
       rating_count: ratingsMap[item.product_id]?.rating_count ?? 0,
       total_sales: salesMap[item.product_id] ?? 0,
+      current_stock: productStockMap[item.product_id] ?? 0,
     }));
 
     return {
@@ -120,6 +123,39 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.user_email || !body?.items || !Array.isArray(body.items)) {
     return NextResponse.json({ error: "user_email and items are required" }, { status: 400 });
+  }
+
+  const productIds = [...new Set(body.items.map((item: { product_id: number }) => item.product_id))];
+
+  if (productIds.length > 0) {
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id, name, stock")
+      .in("id", productIds);
+
+    if (productsError || !products) {
+      return NextResponse.json({ error: "Failed to verify product stock" }, { status: 500 });
+    }
+
+    const stockMap = new Map(products.map((p) => [p.id, { name: p.name, stock: Number(p.stock) }]));
+
+    const outOfStock: string[] = [];
+    for (const item of body.items) {
+      const product = stockMap.get(item.product_id);
+      if (!product) {
+        return NextResponse.json({ error: `Product #${item.product_id} not found` }, { status: 404 });
+      }
+      if (product.stock < item.quantity) {
+        outOfStock.push(`${product.name} (available: ${product.stock}, requested: ${item.quantity})`);
+      }
+    }
+
+    if (outOfStock.length > 0) {
+      return NextResponse.json({
+        error: "Insufficient stock",
+        details: outOfStock,
+      }, { status: 400 });
+    }
   }
 
   const total = body.items.reduce((sum: number, item: { price: number; quantity: number }) => {
@@ -160,6 +196,24 @@ export async function POST(req: NextRequest) {
   if (itemsError) {
     await supabase.from("orders").delete().eq("id", order.id);
     return NextResponse.json({ error: itemsError.message }, { status: 500 });
+  }
+
+  if (body.status === "completed") {
+    for (const item of body.items) {
+      const { data: product } = await supabase
+        .from("products")
+        .select("stock")
+        .eq("id", item.product_id)
+        .single();
+
+      if (product) {
+        const newStock = Math.max(0, Number(product.stock) - item.quantity);
+        await supabase
+          .from("products")
+          .update({ stock: newStock })
+          .eq("id", item.product_id);
+      }
+    }
   }
 
   return NextResponse.json(order, { status: 201 });
