@@ -141,42 +141,50 @@ function ProductPickerModal({
         />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((product) => (
-            <button
-              key={product.id}
-              type="button"
-              onClick={() => onSelect(product)}
-              className="rounded-[1.5rem] border border-white/10 bg-zinc-950/70 p-3 text-left transition hover:border-gold-400/30 hover:bg-zinc-950"
-            >
-              <div className="h-36 w-full overflow-hidden rounded-[1.25rem] bg-zinc-900/80">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.2em] text-zinc-500">
-                    No image
-                  </div>
-                )}
-              </div>
-              <div className="mt-3 space-y-1">
-                <p className="text-sm font-semibold text-white">{product.name}</p>
-                <p className="text-xs text-zinc-500 line-clamp-2">
-                  {product.description ?? "No description"}
-                </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gold-400">
-                    {formatCurrency(product.price)}
-                  </p>
-                  <span className={`text-xs font-medium ${product.stock > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
-                  </span>
+          {filtered.map((product) => {
+            const isOutOfStock = product.stock <= 0;
+            return (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => !isOutOfStock && onSelect(product)}
+                className={`rounded-[1.5rem] border p-3 text-left transition ${
+                  isOutOfStock
+                    ? "border-white/5 bg-zinc-900/30 opacity-60 cursor-not-allowed"
+                    : "border-white/10 bg-zinc-950/70 hover:border-gold-400/30 hover:bg-zinc-950"
+                }`}
+                disabled={isOutOfStock}
+              >
+                <div className="h-36 w-full overflow-hidden rounded-[1.25rem] bg-zinc-900/80">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.2em] text-zinc-500">
+                      No image
+                    </div>
+                  )}
                 </div>
-              </div>
-            </button>
-          ))}
+                <div className="mt-3 space-y-1">
+                  <p className="text-sm font-semibold text-white">{product.name}</p>
+                  <p className="text-xs text-zinc-500 line-clamp-2">
+                    {product.description ?? "No description"}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gold-400">
+                      {formatCurrency(product.price)}
+                    </p>
+                    <span className={`text-xs font-medium ${isOutOfStock ? "text-red-400" : "text-emerald-400"}`}>
+                      {isOutOfStock ? "Out of stock" : `${product.stock} in stock`}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {filtered.length === 0 && (
@@ -211,7 +219,7 @@ export default function OrdersPage() {
   const [customerEmail, setCustomerEmail] = useState("");
   const [orderStatus, setOrderStatus] = useState("pending");
   const [quantity, setQuantity] = useState(1);
-  const [orderItems, setOrderItems] = useState<{ product_id: number; quantity: number; price: number; name: string; image_url: string | null }[]>([]);
+  const [orderItems, setOrderItems] = useState<{ product_id: number; quantity: number; price: number; name: string; image_url: string | null; stock: number }[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const ITEMS_PER_PAGE = 8;
@@ -328,16 +336,33 @@ export default function OrdersPage() {
 
   // ── Add product from picker ──────────────────────────────────────────────
   const handleSelectProduct = (product: ProductOption) => {
-    setOrderItems((prev) => [
-      ...prev,
-      {
-        product_id: product.id,
-        quantity: 1,
-        price: product.price,
-        name: product.name,
-        image_url: product.image_url,
-      },
-    ]);
+    if (product.stock <= 0) {
+      setToast("This product is out of stock.");
+      return;
+    }
+    setOrderItems((prev) => {
+      const existing = prev.find((item) => item.product_id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.stock) {
+          setToast(`Maximum stock reached for ${product.name}`);
+          return prev;
+        }
+        return prev.map((item) =>
+          item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [
+        ...prev,
+        {
+          product_id: product.id,
+          quantity: 1,
+          price: product.price,
+          name: product.name,
+          image_url: product.image_url,
+          stock: product.stock,
+        },
+      ];
+    });
     setIsPickerOpen(false);
     setQuantity(1);
   };
@@ -349,7 +374,12 @@ export default function OrdersPage() {
   const handleUpdateQuantity = (index: number, qty: number) => {
     if (qty < 1) return;
     setOrderItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, quantity: qty } : item))
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const product = products.find((p) => p.id === item.product_id);
+        const maxStock = product?.stock ?? item.stock ?? 99;
+        return { ...item, quantity: Math.min(qty, maxStock) };
+      })
     );
   };
 
@@ -604,62 +634,71 @@ export default function OrdersPage() {
 
                 {orderItems.length > 0 && (
                   <div className="mb-4 space-y-2">
-                    {orderItems.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 p-2"
-                      >
-                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-900/80">
-                          {item.image_url ? (
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-widest text-zinc-500">
-                              No img
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm text-zinc-200">{item.name}</p>
-                          <p className="text-xs text-zinc-500">
-                            {formatCurrency(item.price)} each
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(index, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-xs text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            -
-                          </button>
-                          <span className="w-6 text-center text-sm font-semibold text-white">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(index, item.quantity + 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-xs text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
-                          >
-                            +
-                          </button>
-                        </div>
-                        <p className="w-20 text-right text-sm font-semibold text-gold-400">
-                          {formatCurrency(item.price * item.quantity)}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(index)}
-                          className="ml-1 text-xs text-red-400 transition hover:text-red-300"
+                    {orderItems.map((item, index) => {
+                      const product = products.find((p) => p.id === item.product_id);
+                      const maxStock = product?.stock ?? item.stock ?? 99;
+                      const isMaxed = item.quantity >= maxStock;
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 p-2"
                         >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-900/80">
+                            {item.image_url ? (
+                              <img
+                                src={item.image_url}
+                                alt={item.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-widest text-zinc-500">
+                                No img
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate text-sm text-zinc-200">{item.name}</p>
+                            <p className="text-xs text-zinc-500">
+                              {formatCurrency(item.price)} each
+                            </p>
+                            <p className={`text-xs ${isMaxed ? "text-red-400" : "text-zinc-500"}`}>
+                              {isMaxed ? "Max stock reached" : `${maxStock - item.quantity} left`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(index, item.quantity - 1)}
+                              disabled={item.quantity <= 1}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-xs text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center text-sm font-semibold text-white">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(index, item.quantity + 1)}
+                              disabled={isMaxed}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-xs text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <p className="w-20 text-right text-sm font-semibold text-gold-400">
+                            {formatCurrency(item.price * item.quantity)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(index)}
+                            className="ml-1 text-xs text-red-400 transition hover:text-red-300"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      );
+                    })}
                     <p className="text-sm font-semibold text-gold-400 text-right">
                       Total: {formatCurrency(orderTotal)}
                     </p>
@@ -720,47 +759,55 @@ export default function OrdersPage() {
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-center">
-                <p className="text-xs text-zinc-500">Status</p>
+              <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
+                <p className="text-xs text-zinc-500 mb-3">Status</p>
                 {editingStatus ? (
-                  <div className="mt-2 flex items-center justify-center gap-2">
-                    <select
-                      value={statusDraft}
-                      onChange={(e) => setStatusDraft(e.target.value)}
-                      className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-1.5 text-sm text-white outline-none focus:border-gold-400"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={handleStatusUpdate}
-                      className="rounded-full bg-gold-400 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-gold-400/90"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setEditingStatus(false); setStatusDraft(selectedOrder?.status ?? ""); }}
-                      className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
-                    >
-                      Cancel
-                    </button>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      {["pending", "completed", "cancelled"].map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => setStatusDraft(status)}
+                          className={`rounded-xl border px-3 py-2.5 text-xs font-semibold capitalize transition ${
+                            statusDraft === status
+                              ? "border-gold-400 bg-gold-400/10 text-gold-400"
+                              : "border-white/10 bg-zinc-900 text-zinc-300 hover:border-gold-400/20 hover:text-gold-400"
+                          }`}
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleStatusUpdate}
+                        disabled={statusDraft === selectedOrder.status}
+                        className="flex-1 rounded-full bg-gold-400 px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-gold-400/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingStatus(false); setStatusDraft(selectedOrder?.status ?? ""); }}
+                        className="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="mt-1 flex items-center justify-center gap-2">
-                    <p className={`text-sm font-semibold ${statusTone(selectedOrder.status)}`}>
-                      {selectedOrder.status}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setEditingStatus(true)}
-                      className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
-                    >
-                      Edit
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingStatus(true)}
+                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${statusTone(selectedOrder.status)}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold capitalize">{selectedOrder.status}</span>
+                      <span className="text-xs opacity-70">Edit →</span>
+                    </div>
+                  </button>
                 )}
               </div>
               <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-center">

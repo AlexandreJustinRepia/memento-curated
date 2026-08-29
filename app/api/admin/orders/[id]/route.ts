@@ -71,7 +71,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
   }
 
-  if (newStatus === "cancelled" && oldStatus === "completed") {
+  if ((newStatus === "cancelled" || newStatus === "pending") && oldStatus === "completed") {
     const { data: orderItems } = await supabase
       .from("order_items")
       .select("product_id, quantity")
