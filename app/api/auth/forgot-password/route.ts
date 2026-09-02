@@ -35,10 +35,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const res = await fetch(
+      `${process.env.SUPABASE_URL}/auth/v1/admin/users?email=eq.${encodeURIComponent(normalizedEmail)}`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_SECRET_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY!}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "No account found with that email address." },
+        { status: 404 }
+      );
+    }
+
+    const json = await res.json();
+    const users = json?.users ?? [];
+    const exists = users.some((u: { email?: string }) => u.email?.toLowerCase() === normalizedEmail);
+
+    if (!exists) {
+      return NextResponse.json(
+        { error: "No account found with that email address." },
+        { status: 404 }
+      );
+    }
+  } catch {
+    return NextResponse.json(
+      { error: "No account found with that email address." },
+      { status: 404 }
+    );
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const redirectTo = `${baseUrl}/reset-password`;
 
-  const { error } = await authClient.auth.resetPasswordForEmail(email, {
+  const { error } = await authClient.auth.resetPasswordForEmail(normalizedEmail, {
     redirectTo,
   });
 
