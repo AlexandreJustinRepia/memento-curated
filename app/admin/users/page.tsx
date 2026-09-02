@@ -21,6 +21,7 @@ type ModalState =
   | { type: "create" }
   | { type: "edit"; user: User }
   | { type: "delete"; user: User }
+  | { type: "reset-password"; user: User }
   | { type: null };
 
 type FormState = {
@@ -77,6 +78,9 @@ export default function UsersPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [toast, setToast] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const ITEMS_PER_PAGE = 8;
 
@@ -97,7 +101,25 @@ export default function UsersPage() {
     }
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/admin/users");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setUsers(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load users");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const filtered = useMemo(
@@ -118,10 +140,6 @@ export default function UsersPage() {
     currentPage * ITEMS_PER_PAGE,
   );
 
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [currentPage, totalPages]);
-
   // ── Modals ────────────────────────────────────────────────────────────────
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -131,6 +149,12 @@ export default function UsersPage() {
   const openEdit = (user: User) => {
     setForm({ name: user.name, email: user.email, password: "", role: user.role, status: user.status });
     setModalState({ type: "edit", user });
+  };
+
+  const openResetPassword = (user: User) => {
+    setResetPassword("");
+    setResetPasswordConfirm("");
+    setModalState({ type: "reset-password", user });
   };
 
   const openDelete = (user: User) => setModalState({ type: "delete", user });
@@ -194,6 +218,32 @@ export default function UsersPage() {
       alert(e instanceof Error ? e.message : "Failed to delete user");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Reset Password ────────────────────────────────────────────────────────
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (modalState.type !== "reset-password") return;
+    setResettingPassword(true);
+    try {
+      if (resetPassword !== resetPasswordConfirm) {
+        alert("Passwords do not match");
+        return;
+      }
+      const res = await fetch(`/api/admin/users/${modalState.user.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      closeModal();
+      setToast(`Password reset for ${modalState.user.email}`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to reset password");
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -392,6 +442,13 @@ export default function UsersPage() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => openResetPassword(user)}
+                    className="rounded-full border border-gold-400/20 px-3 py-1.5 text-sm text-gold-400 transition hover:border-gold-400/40 hover:text-gold-400"
+                  >
+                    Reset Password
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openDelete(user)}
                     className="rounded-full border border-rose-400/20 px-3 py-1.5 text-sm text-rose-300 transition hover:bg-rose-400/10"
                   >
@@ -443,7 +500,66 @@ export default function UsersPage() {
               </button>
             </div>
 
-            {modalState.type === "delete" ? (
+            {modalState.type === "reset-password" ? (
+              <form onSubmit={handleResetPassword} className="mt-6 space-y-4">
+                <p className="text-sm leading-6 text-zinc-400">
+                  Set a new password for <span className="font-semibold text-white">{modalState.user.email}</span>
+                </p>
+                <div className="space-y-2">
+                  <label htmlFor="reset-pw" className="text-sm font-medium text-zinc-300">New password</label>
+                  <div className="relative">
+                    <input
+                      id="reset-pw"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      placeholder="Min. 6 characters"
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 pr-12 text-sm text-white outline-none transition focus:border-gold-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-500 transition hover:text-gold-400"
+                    >
+                      {showPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0-8.268-2.943-9.543-7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0-8.268-2.943-9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="reset-pw-confirm" className="text-sm font-medium text-zinc-300">Confirm password</label>
+                  <input
+                    id="reset-pw-confirm"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={resetPasswordConfirm}
+                    onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                    placeholder="Repeat your password"
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-gold-400"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={closeModal} className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={resettingPassword} className="rounded-full bg-gold-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-gold-400/90 disabled:opacity-60">
+                    {resettingPassword ? "Resetting…" : "Reset password"}
+                  </button>
+                </div>
+              </form>
+            ) : modalState.type === "delete" ? (
               <div className="mt-6 space-y-4">
                 <p className="text-sm leading-6 text-zinc-400">
                   This will permanently delete{" "}

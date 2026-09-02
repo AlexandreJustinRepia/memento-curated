@@ -10,7 +10,7 @@ const authClient = createClient(
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  const rl = rateLimit(ip, { id: "forgot-password", limit: 5, windowMs: 1 * 60 * 1000 });
+  const rl = rateLimit(ip, { id: "forgot-password", limit: 5, windowMs: 60 * 1000 });
 
   if (!rl.success) {
     const retryAfterSec = Math.ceil((rl.resetAt - Date.now()) / 1000);
@@ -81,30 +81,6 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     const message = error.message ?? "Failed to send reset email";
-    const isRateLimited =
-      /rate limit/i.test(message) ||
-      /too many requests/i.test(message) ||
-      error.status === 429;
-
-    if (isRateLimited) {
-      const retryAfterSec = Math.max(
-        1,
-        Math.ceil((rl.resetAt - Date.now()) / 1000)
-      );
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(retryAfterSec),
-            "X-RateLimit-Limit": "5",
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": String(Math.ceil(rl.resetAt / 1000)),
-          },
-        }
-      );
-    }
-
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
