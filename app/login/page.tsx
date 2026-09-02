@@ -131,6 +131,9 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 flex items-center justify-between text-sm text-zinc-400">
+            <Link href="/forgot-password" className="font-semibold text-gold-400 transition hover:text-gold-300">
+              Forgot password?
+            </Link>
             <p>Don&apos;t have an account?</p>
             <Link href="/signup" className="font-semibold text-gold-400 transition hover:text-gold-300">
               Sign up
