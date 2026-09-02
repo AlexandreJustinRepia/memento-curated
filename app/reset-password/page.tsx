@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default function ResetPasswordPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(
