@@ -99,6 +99,7 @@ const quickActions = [
   { label: "Add collection", hint: "Launch a new capsule", href: "/admin/products" },
   { label: "Review orders", hint: "Track pending requests", href: "/admin/orders" },
   { label: "View audience", hint: "Inspect recent visitors", href: "/admin" },
+  { label: "Reset rate limits", hint: "Clear request counters", action: "reset-rate-limits" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -110,6 +111,19 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  const handleResetRateLimits = async () => {
+    try {
+      const res = await fetch("/api/admin/rate-limit/reset", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to reset rate limits");
+      setToast("Rate limits cleared");
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Failed to reset rate limits");
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -371,6 +385,27 @@ export default function AdminPage() {
                       </span>
                       <span className="text-sm text-gold-400">→</span>
                     </Link>
+                  );
+                }
+
+                if (item.action === "reset-rate-limits") {
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={handleResetRateLimits}
+                      className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-zinc-950/70 px-3 py-3 text-left transition hover:border-gold-400/20 hover:bg-gold-400/10"
+                    >
+                      <span>
+                        <span className="block text-sm font-medium text-white">
+                          {item.label}
+                        </span>
+                        <span className="mt-1 block text-sm text-zinc-400">
+                          {item.hint}
+                        </span>
+                      </span>
+                      <span className="text-sm text-gold-400">↻</span>
+                    </button>
                   );
                 }
 
