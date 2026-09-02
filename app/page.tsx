@@ -944,7 +944,7 @@ export default function Home() {
         {/* ── Review Submission Modal ─────────────────────────────────── */}
         {isReviewModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl">
+            <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl custom-scrollbar">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Write a Review</p>
@@ -1077,7 +1077,7 @@ export default function Home() {
 
       {isPrivacyOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl max-h-[85dvh] overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl">
+          <div className="w-full max-w-3xl max-h-[85dvh] overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl custom-scrollbar">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
@@ -1176,9 +1176,9 @@ export default function Home() {
                 <p>We may update this Privacy Policy from time to time. The updated version will be indicated by an updated &quot;Last updated&quot; date. We encourage you to review this page periodically.</p>
               </section>
 
-              <section>
+               <section>
                 <h3 className="text-lg font-semibold text-white">11. Contact Us</h3>
-                <p>If you have questions or concerns about this Privacy Policy or your personal data, please contact us at <a href="mailto:privacy@mementocurated.com" className="text-gold-400 underline">privacy@mementocurated.com</a>.</p>
+                <p>If you have questions or concerns about this Privacy Policy or your personal data, please contact us at <a href="mailto:mementocurated.ph@gmail.com" className="text-gold-400 underline cursor-pointer">mementocurated.ph@gmail.com</a>.</p>
               </section>
             </div>
           </div>

@@ -182,10 +182,10 @@ export default function PrivacyPolicyPage() {
                 If you have questions or concerns about this Privacy Policy or
                 your personal data, please contact us at{" "}
                 <a
-                  href="mailto:privacy@mementocurated.com"
+                  href="mailto:mementocurated.ph@gmail.com"
                   className="text-gold-400 underline"
                 >
-                  privacy@mementocurated.com
+                  mementocurated.ph@gmail.com
                 </a>
                 .
               </p>
