@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gem, Truck, Headphones, User } from "lucide-react";
+import { Gem, Truck, Headphones, User, FileText } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,6 +139,7 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewQuality, setReviewQuality] = useState(0);
@@ -1042,17 +1043,147 @@ export default function Home() {
       </main>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="bg-zinc-950 py-16 border-t border-white/5 text-center">
+      <footer className="relative bg-zinc-950 pt-20 pb-10">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
         <div className="container mx-auto px-6 max-w-[1400px]">
-          <span className="font-sans font-bold text-base tracking-[0.25em] uppercase text-gold-400 block mb-6">
-            Memento Curated
-          </span>
-          <p className="text-xs text-zinc-500">
-            © {new Date().getFullYear()} Memento Curated. Crafted with timeless
-            sophistication. All rights reserved.
-          </p>
+          <div className="flex flex-col items-center gap-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-gold-400/30 bg-gold-400/10 text-gold-400">
+                <Gem className="h-5 w-5" />
+              </span>
+              <span className="font-sans font-bold text-lg tracking-[0.25em] uppercase text-gold-400">
+                Memento Curated
+              </span>
+            </div>
+            <p className="max-w-md text-center text-sm leading-6 text-zinc-500">
+              Curated luxury jewelry for timeless moments. Crafted with precision, delivered with care.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-6">
+              <button
+                type="button"
+                onClick={() => setIsPrivacyOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-zinc-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-zinc-300 transition hover:border-gold-400/30 hover:text-gold-400"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Privacy Policy
+              </button>
+            </div>
+            <p className="mt-8 text-xs text-zinc-600">
+              © {new Date().getFullYear()} Memento Curated. All rights reserved.
+            </p>
+          </div>
         </div>
       </footer>
+
+      {isPrivacyOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl max-h-[85dvh] overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-900 p-6 shadow-xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+                  Legal
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">
+                  Privacy Policy
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500">Last updated: September 2, 2026</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPrivacyOpen(false)}
+                className="rounded-full border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-gold-400/40 hover:text-gold-400"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-8 space-y-8 text-sm leading-7 text-zinc-300">
+              <section>
+                <h3 className="text-lg font-semibold text-white">1. Introduction</h3>
+                <p>
+                  Memento Curated (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) respects your privacy and is committed to protecting your personal data in accordance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong> and its implementing rules and regulations. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or place an order.
+                </p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">2. Information We Collect</h3>
+                <p>We may collect the following personal information:</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5">
+                  <li><strong>Identity data:</strong> name, email address, delivery address, contact number</li>
+                  <li><strong>Order data:</strong> products purchased, order totals, payment method, delivery instructions</li>
+                  <li><strong>Technical data:</strong> IP address, browser type, device information, cookies and usage data</li>
+                  <li><strong>Communication data:</strong> messages or inquiries you send to us</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">3. Purpose of Collection</h3>
+                <p>We collect and process your personal data for the following legitimate purposes:</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5">
+                  <li>To process and fulfill your orders</li>
+                  <li>To send order confirmations, updates, and receipts</li>
+                  <li>To respond to your inquiries and provide customer support</li>
+                  <li>To improve our products, services, and website experience</li>
+                  <li>To comply with legal and regulatory obligations</li>
+                  <li>To detect and prevent fraud or unauthorized transactions</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">4. Data Sharing and Disclosure</h3>
+                <p>We do not sell, trade, or rent your personal data to third parties. We may share your information only with:</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5">
+                  <li><strong>Service providers:</strong> delivery partners, payment processors, and email service providers who assist in fulfilling orders</li>
+                  <li><strong>Legal authorities:</strong> when required by law or to protect our rights and safety</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">5. Data Retention</h3>
+                <p>We retain your personal data only for as long as necessary to fulfill the purposes outlined in this policy, unless a longer retention period is required or permitted by law.</p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">6. Your Rights Under RA 10173</h3>
+                <p>As a data subject under the Data Privacy Act of 2012, you have the right to:</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5">
+                  <li>Be informed about the collection and use of your data</li>
+                  <li>Access your personal data held by us</li>
+                  <li>Correct inaccurate or incomplete data</li>
+                  <li>Erase or block your data under certain circumstances</li>
+                  <li>Object to the processing of your data</li>
+                  <li>File a complaint with the National Privacy Commission</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">7. Security Measures</h3>
+                <p>We implement reasonable administrative, technical, and physical safeguards to protect your personal data from unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet is 100% secure.</p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">8. Cookies</h3>
+                <p>Our website may use cookies and similar tracking technologies to enhance your browsing experience. You can disable cookies through your browser settings.</p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">9. Children&apos;s Privacy</h3>
+                <p>Our services are not directed to individuals under the age of 18. We do not knowingly collect personal data from children.</p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">10. Changes to This Policy</h3>
+                <p>We may update this Privacy Policy from time to time. The updated version will be indicated by an updated &quot;Last updated&quot; date. We encourage you to review this page periodically.</p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-semibold text-white">11. Contact Us</h3>
+                <p>If you have questions or concerns about this Privacy Policy or your personal data, please contact us at <a href="mailto:privacy@mementocurated.com" className="text-gold-400 underline">privacy@mementocurated.com</a>.</p>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

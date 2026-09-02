@@ -136,6 +136,22 @@ async function sendOrderEmail(
       ? `\nPayment Method: Cash on Delivery (COD)\n`
       : "";
 
+  const adminDisclaimerBlock =
+    mode === "confirmation"
+      ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #facc15;">
+          <p style="color: #facc15; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Important Notice</p>
+          <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6;">This order is currently <strong>pending admin confirmation</strong>. It is not yet final. We review all orders to prevent spam and fraudulent transactions. You will receive a separate confirmation email once an admin has approved your order.</p>
+        </div>`
+      : "";
+
+  const receiptNoticeBlock =
+    mode === "confirmation"
+      ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #4ade80;">
+          <p style="color: #4ade80; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Receipt Information</p>
+          <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6;">An official receipt/invoice will be issued upon <strong>successful cash delivery</strong>. Please keep this email as your order acknowledgment reference.</p>
+        </div>`
+      : "";
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #fff; background-color: #18181b;">
       <h1 style="color: #facc15; font-size: 24px; margin-bottom: 8px;">Memento Curated</h1>
@@ -148,6 +164,9 @@ async function sendOrderEmail(
         <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Date:</strong> ${new Date(order.created_at).toLocaleString("en-PH")}</p>
         <p style="color: #d4d4d8;"><strong>Status:</strong> <span style="color: #4ade80; text-transform: capitalize;">${order.status}</span></p>
       </div>
+
+      ${adminDisclaimerBlock}
+      ${receiptNoticeBlock}
 
       ${customMessageBlock}
       ${ratingBlock}
@@ -196,6 +215,8 @@ Email: ${order.user_email}
 Date: ${new Date(order.created_at).toLocaleString("en-PH")}
 Status: ${order.status}
 ${paymentTextBlock}
+${mode === "confirmation" ? "\nIMPORTANT NOTICE:\nThis order is currently pending admin confirmation. It is not yet final. We review all orders to prevent spam and fraudulent transactions. You will receive a separate confirmation email once an admin has approved your order.\n" : ""}
+${mode === "confirmation" ? "\nRECEIPT INFORMATION:\nAn official receipt/invoice will be issued upon successful cash delivery. Please keep this email as your order acknowledgment reference.\n" : ""}
 ${customMessageText}
 ${ratingTextBlock}Order Items:
 ${items

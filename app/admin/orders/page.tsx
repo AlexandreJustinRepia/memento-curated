@@ -93,6 +93,65 @@ function StarRating({ value, count }: { value: number | null; count: number }) {
   );
 }
 
+function StatusSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (status: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const tone = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "text-emerald-400 border-emerald-400/20 bg-emerald-400/10";
+      case "pending":
+        return "text-amber-400 border-amber-400/20 bg-amber-400/10";
+      case "cancelled":
+        return "text-red-400 border-red-400/20 bg-red-400/10";
+      default:
+        return "text-zinc-300 border-white/10 bg-zinc-950/80";
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${tone(value)}`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold capitalize">{value}</span>
+          <span className="text-xs opacity-70">{open ? "▲" : "▼"}</span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+          {["pending", "completed", "cancelled"].map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => {
+                onChange(status);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-xs font-semibold capitalize transition hover:bg-zinc-800 first:rounded-t-xl last:rounded-b-xl ${
+                value === status ? "text-gold-400" : "text-zinc-300"
+              }`}
+            >
+              <span>{status}</span>
+              {value === status && <span className="text-gold-400">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Product Picker Modal
 // ---------------------------------------------------------------------------
@@ -207,9 +266,8 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [editingStatus, setEditingStatus] = useState(false);
-  const [statusDraft, setStatusDraft] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [generatingReceipt, setGeneratingReceipt] = useState(false);
   const [requestingRatings, setRequestingRatings] = useState(false);
   const [emailMessage, setEmailMessage] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -328,8 +386,6 @@ export default function OrdersPage() {
   // ── Open order detail ────────────────────────────────────────────────────
   const openOrder = (order: Order) => {
     setSelectedOrder(order);
-    setEditingStatus(false);
-    setStatusDraft(order.status);
     setEmailMessage("");
     setConfirmDeleteId(null);
   };
@@ -354,21 +410,17 @@ export default function OrdersPage() {
     }
   };
 
-  const handleStatusUpdate = async () => {
-    if (!selectedOrder || statusDraft === selectedOrder.status) {
-      setEditingStatus(false);
-      return;
-    }
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!selectedOrder || newStatus === selectedOrder.status) return;
     try {
       const res = await fetch(`/api/admin/orders/${selectedOrder.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: statusDraft }),
+        body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to update status");
       setToast("Order status updated.");
-      setSelectedOrder((prev) => (prev ? { ...prev, status: statusDraft } : null));
-      setEditingStatus(false);
+      setSelectedOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
       fetchOrders();
     } catch (e) {
       setToast(e instanceof Error ? e.message : "Failed to update status");
@@ -408,6 +460,28 @@ export default function OrdersPage() {
       setToast(e instanceof Error ? e.message : "Failed to send rating request");
     } finally {
       setRequestingRatings(false);
+    }
+  };
+
+  const handleGenerateReceipt = async () => {
+    if (!selectedOrder) return;
+    setGeneratingReceipt(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/receipt`);
+      if (!res.ok) throw new Error("Failed to generate receipt");
+      const html = await res.text();
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      if (win) {
+        win.onload = () => win.print();
+      } else {
+        setToast("Please allow popups to print the receipt.");
+      }
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Failed to generate receipt");
+    } finally {
+      setGeneratingReceipt(false);
     }
   };
 
@@ -899,54 +973,10 @@ export default function OrdersPage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
                 <p className="text-xs text-zinc-500 mb-3">Status</p>
-                {editingStatus ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      {["pending", "completed", "cancelled"].map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          onClick={() => setStatusDraft(status)}
-                          className={`rounded-xl border px-3 py-2.5 text-xs font-semibold capitalize transition ${
-                            statusDraft === status
-                              ? "border-gold-400 bg-gold-400/10 text-gold-400"
-                              : "border-white/10 bg-zinc-900 text-zinc-300 hover:border-gold-400/20 hover:text-gold-400"
-                          }`}
-                        >
-                          {status}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={handleStatusUpdate}
-                        disabled={statusDraft === selectedOrder.status}
-                        className="flex-1 rounded-full bg-gold-400 px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-gold-400/90 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setEditingStatus(false); setStatusDraft(selectedOrder?.status ?? ""); }}
-                        className="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-gold-400/20 hover:text-gold-400"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditingStatus(true)}
-                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${statusTone(selectedOrder.status)}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold capitalize">{selectedOrder.status}</span>
-                      <span className="text-xs opacity-70">Edit →</span>
-                    </div>
-                  </button>
-                )}
+                <StatusSelect
+                  value={selectedOrder.status}
+                  onChange={handleStatusUpdate}
+                />
               </div>
               <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-center">
                 <p className="text-xs text-zinc-500">Total</p>
@@ -991,6 +1021,16 @@ export default function OrdersPage() {
                   className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-400 transition hover:border-emerald-400/40 hover:text-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {requestingRatings ? "Sending…" : "Request Ratings"}
+                </button>
+              )}
+              {selectedOrder.status === "completed" && (
+                <button
+                  type="button"
+                  onClick={handleGenerateReceipt}
+                  disabled={generatingReceipt}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-zinc-950/70 px-4 py-2 text-sm font-semibold text-white transition hover:border-gold-400/20 hover:text-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {generatingReceipt ? "Generating…" : "Generate Receipt"}
                 </button>
               )}
               <button

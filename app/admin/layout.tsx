@@ -299,15 +299,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       </svg>
                       Storefront
                     </Link>
-                    <Link
-                      href="/profile"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-gold-400/10 hover:text-gold-400"
-                    >
-                      <User className="h-4 w-4 shrink-0" />
-                      Profile
-                    </Link>
-                    <button
+                     <Link
+                       href="/profile"
+                       onClick={() => setUserMenuOpen(false)}
+                       className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-gold-400/10 hover:text-gold-400"
+                     >
+                       <User className="h-4 w-4 shrink-0" />
+                       Profile
+                     </Link>
+                     <Link
+                       href="/privacy"
+                       onClick={() => setUserMenuOpen(false)}
+                       className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-gold-400/10 hover:text-gold-400"
+                     >
+                       Privacy Policy
+                     </Link>
+                     <button
                       type="button"
                       onClick={handleLogout}
                       className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-zinc-300 transition hover:bg-red-400/10 hover:text-red-400"
