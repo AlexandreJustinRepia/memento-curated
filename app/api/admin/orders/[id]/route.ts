@@ -9,6 +9,224 @@ const supabase = createClient(
 
 type Params = { params: Promise<{ id: string }> };
 
+async function getOrderDetails(orderId: number) {
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", orderId)
+    .single();
+
+  if (orderError || !order) return null;
+
+  const { data: orderItems } = await supabase
+    .from("order_items")
+    .select("*")
+    .eq("order_id", orderId);
+
+  const items = orderItems ?? [];
+  const productIds = [...new Set(items.map((i: { product_id: number }) => i.product_id))];
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, name")
+    .in("id", productIds);
+
+  const productNameMap: Record<number, string> = {};
+  if (products) {
+    for (const p of products) {
+      productNameMap[p.id] = p.name;
+    }
+  }
+
+  return { order, items, productNameMap };
+}
+
+async function sendOrderEmail(
+  orderId: number,
+  mode: "confirmation" | "ratings",
+  customMessage?: string
+) {
+  const details = await getOrderDetails(orderId);
+  if (!details) return { success: false as const, error: "Order not found" };
+
+  const { order, items, productNameMap } = details;
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+
+  const productLinks = items
+    .map((item) => {
+      const productName = productNameMap[item.product_id] ?? "Unknown Product";
+      const url = `${baseUrl}/product/${item.product_id}`;
+      return `- ${productName} x${item.quantity}: ${url}`;
+    })
+    .join("\n");
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  const itemsHtml = items
+    .map((item) => {
+      const productName = productNameMap[item.product_id] ?? "Unknown Product";
+      const lineTotal = Number(item.price) * item.quantity;
+      return `
+        <tr>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #333;">${productName}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #333; text-align: center;">${item.quantity}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #333; text-align: right;">₱${Number(item.price).toFixed(2)}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #333; text-align: right;">₱${lineTotal.toFixed(2)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const trimmedMessage = customMessage?.trim();
+  const customMessageBlock =
+    trimmedMessage ||
+    mode === "confirmation"
+      ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #facc15;">
+          <p style="color: #facc15; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Payment Method</p>
+          <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6;">Cash on Delivery (COD)</p>
+        </div>`
+      : "";
+
+  const ratingBlock =
+    mode === "ratings"
+      ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #facc15;">
+          <p style="color: #facc15; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">We'd love your feedback</p>
+          <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6; margin-bottom: 12px;">Thank you for your purchase! Please take a moment to rate the products you received.</p>
+          <div style="background-color: #18181b; border-radius: 12px; padding: 16px;">
+            ${items
+              .map((item) => {
+                const productName = productNameMap[item.product_id] ?? "Unknown Product";
+                const url = `${baseUrl}/product/${item.product_id}`;
+                return `<a href="${url}" style="display: block; padding: 8px 0; color: #facc15; text-decoration: none; font-size: 14px;">★ Rate ${productName}</a>`;
+              })
+              .join("")}
+          </div>
+          <p style="color: #a1a1aa; font-size: 12px; margin-top: 12px;">Sign in to your account to leave a review.</p>
+        </div>`
+      : "";
+
+  const subject =
+    mode === "ratings"
+      ? `How was your order? Rate your purchase #${order.id} — Memento Curated`
+      : `Order Confirmation #${order.id} — Memento Curated`;
+
+  const title =
+    mode === "ratings" ? "Rate Your Purchase" : "Order Confirmation";
+
+  const footerMessage =
+    mode === "ratings"
+      ? "We appreciate your business! Your feedback helps us improve."
+      : "Thank you for your order! We'll notify you when your items are shipped.";
+
+  const ratingTextBlock =
+    mode === "ratings"
+      ? `\nWe'd love your feedback! Rate the products you purchased:\n${productLinks}\n`
+      : "";
+
+  const paymentTextBlock =
+    mode === "confirmation"
+      ? `\nPayment Method: Cash on Delivery (COD)\n`
+      : "";
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #fff; background-color: #18181b;">
+      <h1 style="color: #facc15; font-size: 24px; margin-bottom: 8px;">Memento Curated</h1>
+      <p style="color: #a1a1aa; margin-bottom: 24px;">${title}</p>
+
+      <div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Order #:</strong> #${order.custom_order_id || order.id}</p>
+        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Customer:</strong> ${order.user_name}</p>
+        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Email:</strong> ${order.user_email}</p>
+        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Date:</strong> ${new Date(order.created_at).toLocaleString("en-PH")}</p>
+        <p style="color: #d4d4d8;"><strong>Status:</strong> <span style="color: #4ade80; text-transform: capitalize;">${order.status}</span></p>
+      </div>
+
+      ${customMessageBlock}
+      ${ratingBlock}
+
+      <h2 style="color: #facc15; font-size: 18px; margin-bottom: 12px;">Order Items</h2>
+      <table style="width: 100%; border-collapse: collapse; background-color: #27272a; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
+        <thead>
+          <tr style="background-color: #3f3f46;">
+            <th style="padding: 10px 12px; text-align: left; color: #facc15; font-size: 12px; text-transform: uppercase;">Product</th>
+            <th style="padding: 10px 12px; text-align: center; color: #facc15; font-size: 12px; text-transform: uppercase;">Qty</th>
+            <th style="padding: 10px 12px; text-align: right; color: #facc15; font-size: 12px; text-transform: uppercase;">Price</th>
+            <th style="padding: 10px 12px; text-align: right; color: #facc15; font-size: 12px; text-transform: uppercase;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+        <tfoot>
+          <tr style="background-color: #3f3f46;">
+            <td colspan="3" style="padding: 12px; text-align: right; color: #facc15; font-weight: bold;">Total</td>
+            <td style="padding: 12px; text-align: right; color: #facc15; font-weight: bold;">₱${Number(order.total).toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6;">
+        ${footerMessage}
+      </p>
+
+      <p style="color: #71717a; font-size: 12px; margin-top: 32px;">
+        © ${new Date().getFullYear()} Memento Curated. All rights reserved.
+      </p>
+    </div>
+  `;
+
+  const customMessageText = trimmedMessage
+    ? `\nPersonal note from the team:\n${trimmedMessage}\n`
+    : "";
+
+  const text = `
+${title} — Memento Curated
+
+Order #: #${order.custom_order_id || order.id}
+Customer: ${order.user_name}
+Email: ${order.user_email}
+Date: ${new Date(order.created_at).toLocaleString("en-PH")}
+Status: ${order.status}
+${paymentTextBlock}
+${customMessageText}
+${ratingTextBlock}Order Items:
+${items
+  .map((item) => {
+    const productName = productNameMap[item.product_id] ?? "Unknown Product";
+    const lineTotal = Number(item.price) * item.quantity;
+    return `- ${productName} x${item.quantity} = ₱${lineTotal.toFixed(2)}`;
+  })
+  .join("\n")}
+
+Total: ₱${Number(order.total).toFixed(2)}
+
+${footerMessage}
+  `.trim();
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || `"Memento Curated" <${process.env.SMTP_USER}>`,
+      to: order.user_email,
+      subject,
+      text,
+      html,
+    });
+
+    return { success: true as const, message: mode === "ratings" ? "Rating request email sent" : "Email sent successfully" };
+  } catch (error) {
+    console.error("Email send error:", error);
+    return { success: false as const, error: "Failed to send email" };
+  }
+}
+
 // PUT /api/admin/orders/[id] — update order status
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -71,32 +289,38 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
   }
 
-  if ((newStatus === "cancelled" || newStatus === "pending") && oldStatus === "completed") {
-    const { data: orderItems } = await supabase
-      .from("order_items")
-      .select("product_id, quantity")
-      .eq("order_id", orderId);
+   if ((newStatus === "cancelled" || newStatus === "pending") && oldStatus === "completed") {
+     const { data: orderItems } = await supabase
+       .from("order_items")
+       .select("product_id, quantity")
+       .eq("order_id", orderId);
 
-    if (orderItems) {
-      for (const item of orderItems) {
-        const { data: product } = await supabase
-          .from("products")
-          .select("stock")
-          .eq("id", item.product_id)
-          .single();
+     if (orderItems) {
+       for (const item of orderItems) {
+         const { data: product } = await supabase
+           .from("products")
+           .select("stock")
+           .eq("id", item.product_id)
+           .single();
 
-        if (product) {
-          const newStock = Number(product.stock) + item.quantity;
-          await supabase
-            .from("products")
-            .update({ stock: newStock })
-            .eq("id", item.product_id);
-        }
-      }
-    }
-  }
+         if (product) {
+           const newStock = Number(product.stock) + item.quantity;
+           await supabase
+             .from("products")
+             .update({ stock: newStock })
+             .eq("id", item.product_id);
+         }
+       }
+     }
+   }
 
-  return NextResponse.json({ success: true, status: newStatus });
+   if (newStatus === "pending") {
+     await sendOrderEmail(orderId, "confirmation");
+   } else if (newStatus === "completed") {
+     await sendOrderEmail(orderId, "ratings");
+   }
+
+   return NextResponse.json({ success: true, status: newStatus });
 }
 
 // DELETE /api/admin/orders/[id] — delete an order
@@ -142,163 +366,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  const { data: orderItems } = await supabase
-    .from("order_items")
-    .select("*")
-    .eq("order_id", orderId);
+  const result = await sendOrderEmail(
+    orderId,
+    requestRatings ? "ratings" : "confirmation",
+    customMessage
+  );
 
-  const items = orderItems ?? [];
-  const productIds = [...new Set(items.map((i: { product_id: number }) => i.product_id))];
-
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name")
-    .in("id", productIds);
-
-  const productNameMap: Record<number, string> = {};
-  if (products) {
-    for (const p of products) {
-      productNameMap[p.id] = p.name;
-    }
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
   }
 
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
-  const productLinks = items.map((item) => {
-    const productName = productNameMap[item.product_id] ?? "Unknown Product";
-    const url = `${baseUrl}/product/${item.product_id}`;
-    return `- ${productName} x${item.quantity}: ${url}`;
-  }).join("\n");
-
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: Number(process.env.SMTP_PORT) === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-
-  const itemsHtml = items.map((item) => {
-    const productName = productNameMap[item.product_id] ?? "Unknown Product";
-    const lineTotal = Number(item.price) * item.quantity;
-    return `
-      <tr>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #333;">${productName}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #333; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #333; text-align: right;">₱${Number(item.price).toFixed(2)}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #333; text-align: right;">₱${lineTotal.toFixed(2)}</td>
-      </tr>
-    `;
-  }).join("");
-
-  const customMessageBlock = customMessage
-    ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #facc15;">
-        <p style="color: #facc15; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Personal note from the team</p>
-        <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${customMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
-       </div>`
-    : "";
-
-  const ratingBlock = requestRatings
-    ? `<div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #facc15;">
-        <p style="color: #facc15; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">We'd love your feedback</p>
-        <p style="color: #d4d4d8; font-size: 14px; line-height: 1.6; margin-bottom: 12px;">Thank you for your purchase! Please take a moment to rate the products you received.</p>
-        <div style="background-color: #18181b; border-radius: 12px; padding: 16px;">
-          ${items.map((item) => {
-            const productName = productNameMap[item.product_id] ?? "Unknown Product";
-            const url = `${baseUrl}/product/${item.product_id}`;
-            return `<a href="${url}" style="display: block; padding: 8px 0; color: #facc15; text-decoration: none; font-size: 14px;">★ Rate ${productName}</a>`;
-          }).join("")}
-        </div>
-        <p style="color: #a1a1aa; font-size: 12px; margin-top: 12px;">Sign in to your account to leave a review.</p>
-       </div>`
-    : "";
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #fff; background-color: #18181b;">
-      <h1 style="color: #facc15; font-size: 24px; margin-bottom: 8px;">Memento Curated</h1>
-      <p style="color: #a1a1aa; margin-bottom: 24px;">${requestRatings ? "Rate Your Purchase" : "Order Confirmation"}</p>
-
-      <div style="background-color: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Order #:</strong> #${order.id}</p>
-        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Customer:</strong> ${order.user_name}</p>
-        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Email:</strong> ${order.user_email}</p>
-        <p style="color: #d4d4d8; margin-bottom: 4px;"><strong>Date:</strong> ${new Date(order.created_at).toLocaleString("en-PH")}</p>
-        <p style="color: #d4d4d8;"><strong>Status:</strong> <span style="color: #4ade80; text-transform: capitalize;">${order.status}</span></p>
-      </div>
-
-      ${customMessageBlock}
-      ${ratingBlock}
-
-      <h2 style="color: #facc15; font-size: 18px; margin-bottom: 12px;">Order Items</h2>
-      <table style="width: 100%; border-collapse: collapse; background-color: #27272a; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
-        <thead>
-          <tr style="background-color: #3f3f46;">
-            <th style="padding: 10px 12px; text-align: left; color: #facc15; font-size: 12px; text-transform: uppercase;">Product</th>
-            <th style="padding: 10px 12px; text-align: center; color: #facc15; font-size: 12px; text-transform: uppercase;">Qty</th>
-            <th style="padding: 10px 12px; text-align: right; color: #facc15; font-size: 12px; text-transform: uppercase;">Price</th>
-            <th style="padding: 10px 12px; text-align: right; color: #facc15; font-size: 12px; text-transform: uppercase;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
-        <tfoot>
-          <tr style="background-color: #3f3f46;">
-            <td colspan="3" style="padding: 12px; text-align: right; color: #facc15; font-weight: bold;">Total</td>
-            <td style="padding: 12px; text-align: right; color: #facc15; font-weight: bold;">₱${Number(order.total).toFixed(2)}</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6;">
-        ${requestRatings ? "We appreciate your business! Your feedback helps us improve." : "Thank you for your order! We'll notify you when your items are shipped."}
-      </p>
-
-      <p style="color: #71717a; font-size: 12px; margin-top: 32px;">
-        © ${new Date().getFullYear()} Memento Curated. All rights reserved.
-      </p>
-    </div>
-  `;
-
-  const customMessageText = customMessage ? `\nPersonal note from the team:\n${customMessage}\n` : "";
-
-  const text = `
-${requestRatings ? "Rate Your Purchase — Memento Curated" : "Memento Curated - Order Confirmation"}
-
-Order #: #${order.id}
-Customer: ${order.user_name}
-Email: ${order.user_email}
-Date: ${new Date(order.created_at).toLocaleString("en-PH")}
-Status: ${order.status}
-${customMessageText}
-${requestRatings ? "\nWe'd love your feedback! Rate the products you purchased:\n" + productLinks + "\n" : ""}
-Order Items:
-${items.map((item) => {
-  const productName = productNameMap[item.product_id] ?? "Unknown Product";
-  const lineTotal = Number(item.price) * item.quantity;
-  return `- ${productName} x${item.quantity} = ₱${lineTotal.toFixed(2)}`;
-}).join("\n")}
-
-Total: ₱${Number(order.total).toFixed(2)}
-
-${requestRatings ? "We appreciate your business!" : "Thank you for your order!"}
-  `.trim();
-
-  try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `"Memento Curated" <${process.env.SMTP_USER}>`,
-      to: order.user_email,
-      subject: requestRatings
-        ? `How was your order? Rate your purchase #${order.id} — Memento Curated`
-        : `Order Confirmation #${order.id} — Memento Curated`,
-      text,
-      html,
-    });
-
-    return NextResponse.json({ success: true, message: requestRatings ? "Rating request email sent" : "Email sent successfully" });
-  } catch (error) {
-    console.error("Email send error:", error);
-    return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
-  }
+  return NextResponse.json({ success: true, message: result.message });
 }
