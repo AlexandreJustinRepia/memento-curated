@@ -1,13 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return clearTimer;
+  }, []);
+
+  const startCooldown = (seconds: number) => {
+    clearTimer();
+    setCooldown(seconds);
+    timerRef.current = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          clearTimer();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const formatTime = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${secs}s`;
+    }
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,8 +61,26 @@ export default function ForgotPasswordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
+
+      if (res.status === 429) {
+        const retryAfter = res.headers.get("Retry-After");
+        const seconds = retryAfter ? Number(retryAfter) : 60;
+        startCooldown(seconds);
+        setError(`Too many requests. Please wait ${formatTime(seconds)} before trying again.`);
+        return;
+      }
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to send reset email");
+      if (!res.ok) {
+        const msg = data.error ?? "Failed to send reset email";
+        if (/rate limit|too many requests/i.test(msg)) {
+          const seconds = 60;
+          startCooldown(seconds);
+          setError(`Too many requests. Please wait ${formatTime(seconds)} before trying again.`);
+          return;
+        }
+        throw new Error(msg);
+      }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -29,6 +88,8 @@ export default function ForgotPasswordPage() {
       setLoading(false);
     }
   };
+
+  const isRateLimited = cooldown > 0;
 
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-16 text-zinc-100 flex items-center justify-center">
@@ -86,12 +147,18 @@ export default function ForgotPasswordPage() {
                 </p>
               )}
 
+              {isRateLimited && (
+                <p className="text-center text-xs text-zinc-500">
+                  You can request another reset link in <span className="font-semibold text-gold-400">{formatTime(cooldown)}</span>
+                </p>
+              )}
+
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full rounded-full bg-gold-400 px-4 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-950 transition hover:bg-gold-400/90 disabled:opacity-60"
+                disabled={loading || isRateLimited}
+                className="w-full rounded-full bg-gold-400 px-4 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-950 transition hover:bg-gold-400/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Sending…" : "Send reset link"}
+                {loading ? "Sending…" : isRateLimited ? `Wait ${formatTime(cooldown)}` : "Send reset link"}
               </button>
             </form>
           )}
