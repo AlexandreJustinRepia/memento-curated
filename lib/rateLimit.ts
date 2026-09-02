@@ -11,6 +11,10 @@ type RateLimitStore = Map<string, number[]>;
 // Module-level store — persists across requests within the same process.
 const store: RateLimitStore = new Map();
 
+export function resetRateLimitStore() {
+  store.clear();
+}
+
 export interface RateLimitOptions {
   /** Unique name for this limiter (e.g. "signin", "signup") */
   id: string;

@@ -19,7 +19,7 @@ const adminClient = createClient(
 export async function POST(req: NextRequest) {
   // ── Rate limit: 5 sign-in attempts per 15 minutes per IP ────────────────
   const ip = getClientIp(req);
-  const rl = rateLimit(ip, { id: "signin", limit: 5, windowMs: 15 * 60 * 1000 });
+  const rl = rateLimit(ip, { id: "signin", limit: 5, windowMs: 1 * 60 * 1000 });
 
   if (!rl.success) {
     const retryAfterSec = Math.ceil((rl.resetAt - Date.now()) / 1000);

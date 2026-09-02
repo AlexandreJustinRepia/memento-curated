@@ -12,7 +12,7 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   // ── Rate limit: 10 sign-up attempts per hour per IP ───────────────────
   const ip = getClientIp(req);
-  const rl = rateLimit(ip, { id: "signup", limit: 10, windowMs: 60 * 60 * 1000 });
+  const rl = rateLimit(ip, { id: "signup", limit: 10, windowMs: 1 * 60 * 1000 });
 
   if (!rl.success) {
     const retryAfterSec = Math.ceil((rl.resetAt - Date.now()) / 1000);

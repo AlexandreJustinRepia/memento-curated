@@ -10,7 +10,7 @@ const authClient = createClient(
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  const rl = rateLimit(ip, { id: "forgot-password", limit: 5, windowMs: 60 * 60 * 1000 });
+  const rl = rateLimit(ip, { id: "forgot-password", limit: 5, windowMs: 1 * 60 * 1000 });
 
   if (!rl.success) {
     const retryAfterSec = Math.ceil((rl.resetAt - Date.now()) / 1000);
