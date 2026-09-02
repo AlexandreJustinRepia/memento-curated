@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const publicRoutes = ["/login", "/signup", "/forgot-password", "/reset-password", "/api/auth/signin", "/api/auth/signup", "/api/auth/forgot-password"];
 
 // Routes that require admin role
-const adminRoutes = ["/admin"];
+const adminRoutes = ["/admin", "/api/admin/rate-limit/reset"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
